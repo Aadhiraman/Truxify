@@ -359,15 +359,6 @@ class OrderReadModel {
     }
 
     return stats;
-        .from(ORDER_READ_MODEL_TABLE)
-        .select('*', { count: 'exact', head: true })
-        .eq('status', status);
-
-      if (error) throw error;
-      stats[status] = count ?? 0;
-    }
-
-    return stats;
   }
 
   async clearCache() {
@@ -376,7 +367,6 @@ class OrderReadModel {
   }
 }
 
-export default new OrderReadModel();
 export default new OrderReadModel();
 export { OrderReadModel };
 
