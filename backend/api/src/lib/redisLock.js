@@ -115,7 +115,6 @@ export class LockAcquisitionError extends Error {
     this.reason = reason;
   }
 }
-
 /**
  * Acquires a distributed Redis lock using SET … NX PX with a random owner
  * token (UUID) so that only the holder can release it.
