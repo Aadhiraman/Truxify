@@ -4,6 +4,14 @@ import logger from '../middleware/logger.js';
 
 const localQueues = new Map();
 
+function normalizeTtl(ttlMs, fallbackMs) {
+  const value = Number(ttlMs);
+  if (!Number.isFinite(value) || value <= 0) {
+    return fallbackMs;
+  }
+  return value;
+}
+
 function acquireLocalLock(key, ttlSeconds) {
   const tail = localQueues.get(key) ?? Promise.resolve();
   let release;
@@ -44,16 +52,16 @@ function acquireLocalLock(key, ttlSeconds) {
  * @returns {Promise<{acquired: boolean, release: Function}>}
  */
 export async function acquireDistributedLock(key, ttlSeconds = 5) {
+  const safeTtlSeconds = normalizeTtl(ttlSeconds, 5);
   const isRedisReady = redisClient &&
     (redisClient.status === 'ready' || (!redisClient.status && typeof redisClient.set === 'function'));
 
   if (!isRedisReady) {
-    // Degraded / fallback mode: maintain in-process mutual exclusion per key
-    return acquireLocalLock(key, ttlSeconds);
+    return { acquired: false, release: async () => {} };
   }
 
   try {
-    const lock = await redisClient.set(key, '1', 'NX', 'EX', ttlSeconds);
+    const lock = await redisClient.set(key, '1', 'NX', 'EX', safeTtlSeconds);
     if (lock === 'OK') {
       return {
         acquired: true,
@@ -68,7 +76,7 @@ export async function acquireDistributedLock(key, ttlSeconds = 5) {
     }
   } catch (err) {
     logger.error({ err, key }, 'Redis lock acquisition error; using local mutex fallback');
-    return acquireLocalLock(key, ttlSeconds);
+    return acquireLocalLock(key, safeTtlSeconds);
   }
 
   return { acquired: false, release: async () => {} };
@@ -139,10 +147,11 @@ export async function acquireLock(resourceKey, ttlMs = 30_000) {
     );
   }
 
+  const safeTtlMs = normalizeTtl(ttlMs, 30_000);
   const lockValue = crypto.randomUUID();
 
   try {
-    const result = await redisClient.set(resourceKey, lockValue, 'PX', ttlMs, 'NX');
+    const result = await redisClient.set(resourceKey, lockValue, 'PX', safeTtlMs, 'NX');
 
     if (result === 'OK' || result === 1 || result === true) {
       return lockValue;
@@ -165,8 +174,9 @@ export async function acquireLock(resourceKey, ttlMs = 30_000) {
  * @returns {Promise<boolean>} true if renewed, false if the lock is no longer ours
  */
 export async function renewLock(resourceKey, lockValue, ttlMs = 30_000) {
-  if (!redisClient || !lockValue) return false;
+  if (!redisClient || !lockValue || typeof resourceKey !== 'string' || !resourceKey.trim()) return false;
 
+  const safeTtlMs = normalizeTtl(ttlMs, 30_000);
   const luaScript = `
     if redis.call('GET', KEYS[1]) == ARGV[1] then
       redis.call('PEXPIRE', KEYS[1], ARGV[2])
@@ -177,7 +187,7 @@ export async function renewLock(resourceKey, lockValue, ttlMs = 30_000) {
 
   try {
     const result = await redisClient.eval(
-      luaScript, 1, resourceKey, lockValue, ttlMs.toString()
+      luaScript, 1, resourceKey, lockValue, safeTtlMs.toString()
     );
     return result === 1;
   } catch (err) {
@@ -190,13 +200,18 @@ export const DEFAULT_LOCK_RENEWAL_INTERVAL_MS = 10_000;
 
 export async function withLockRenewal(resourceKey, lockValue, ttlMs, asyncFn, intervalMs = DEFAULT_LOCK_RENEWAL_INTERVAL_MS) {
   if (!resourceKey || !lockValue || typeof asyncFn !== 'function') {
-    return asyncFn();
+    if (typeof asyncFn === 'function') {
+      return asyncFn();
+    }
+    return undefined;
   }
 
-  const renewalIntervalMs = Math.max(Math.min(intervalMs, Math.floor(ttlMs / 2)), 1_000);
+  const safeTtlMs = normalizeTtl(ttlMs, DEFAULT_LOCK_RENEWAL_INTERVAL_MS * 2);
+  const safeIntervalMs = normalizeTtl(intervalMs, DEFAULT_LOCK_RENEWAL_INTERVAL_MS);
+  const renewalIntervalMs = Math.max(Math.min(safeIntervalMs, Math.floor(safeTtlMs / 2)), 1_000);
 
   const timer = setInterval(() => {
-    void renewLock(resourceKey, lockValue, ttlMs);
+    void renewLock(resourceKey, lockValue, safeTtlMs);
   }, renewalIntervalMs);
   timer.unref?.();
 
@@ -215,7 +230,7 @@ export async function withLockRenewal(resourceKey, lockValue, ttlMs, asyncFn, in
  * @returns {Promise<boolean>} true if we held and deleted the lock, false otherwise
  */
 export async function releaseLock(resourceKey, lockValue) {
-  if (!redisClient || !lockValue) return false;
+  if (!redisClient || !lockValue || typeof resourceKey !== 'string' || !resourceKey.trim()) return false;
 
   const luaScript = `
     if redis.call('GET', KEYS[1]) == ARGV[1] then
