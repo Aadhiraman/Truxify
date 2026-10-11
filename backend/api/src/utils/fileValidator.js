@@ -37,7 +37,7 @@ export const computeSHA256Hash = (buffer) => {
 
 export const sanitizeFileName = (originalName) => {
     const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 8);
+    const randomString = crypto.randomBytes(4).toString('hex');
     const extension = originalName.substring(originalName.lastIndexOf('.')).toLowerCase();
     return `${timestamp}-${randomString}${extension}`;
 };
