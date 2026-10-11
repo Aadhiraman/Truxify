@@ -387,7 +387,10 @@ export class OrderLifecycleService {
 
       try {
         const { data: offer, error: offerErr } = await this.orderRepository.findLoadOfferById(loadOfferId, 'id, status, customer_id');
-        if (offerErr || !offer) throw new DomainError(404, { error: 'Load offer not found.' });
+        // A database error is not 'not found' — collapsing the two masks
+        // outages as 404s and breaks client retry semantics.
+        if (offerErr) throw new DomainError(500, { error: 'Failed to load the load offer.' });
+        if (!offer) throw new DomainError(404, { error: 'Load offer not found.' });
         if (offer.status !== 'available') throw new DomainError(410, { error: 'Load is no longer available for bidding.' });
         if (offer.customer_id === driverId) throw new DomainError(403, { error: 'You cannot bid on your own load offer' });
 
