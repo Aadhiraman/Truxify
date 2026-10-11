@@ -1,5 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
+// Pin the DB clients to null so persistBundleResults takes its
+// 'Database client unavailable' skip path deterministically — otherwise a
+// harness setup.js that initializes real Supabase clients routes the persist
+// write through the fetch mock and inflates the call count.
+vi.mock('../../src/config/db.js', () => ({
+  supabase: null,
+  supabaseAdmin: null,
+  redisClient: null,
+  mongoDb: null,
+}));
+
 vi.mock('axios', () => ({
   default: { post: vi.fn() },
 }));
