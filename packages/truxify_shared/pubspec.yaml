@@ -28,4 +28,5 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  firebase_auth_mocks: ^0.15.0  # auth_service_test imports it
 
