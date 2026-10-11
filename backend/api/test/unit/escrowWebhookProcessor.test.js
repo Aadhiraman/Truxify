@@ -494,6 +494,19 @@ describe('processEscrowWebhookEvent — WithdrawalReady / Withdrawn', () => {
 
   it('rejects a withdrawal webhook without a well-formed transaction hash (permanent)', async () => {
     dbState.orderResult = { data: makeOrder({ order_display_id: '#OD6' }), error: null };
+
+    // Missing hash: the withdrawal cannot be verified on-chain.
+    await expect(
+      processEscrowWebhookEvent('WithdrawalReady', { orderId: '#OD6' })
+    ).rejects.toMatchObject({ code: 'INVALID_TX_HASH', retryable: false });
+
+    // Malformed hash: normalizeTxHash rejects it before any verification or write.
+    await expect(
+      processEscrowWebhookEvent('Withdrawn', { orderId: '#OD6', txHash: '0xabc' })
+    ).rejects.toMatchObject({ code: 'INVALID_TX_HASH', retryable: false });
+
+    expect(verifierMock.verifyWithdrawal).not.toHaveBeenCalled();
+    expect(dbState.updates).toHaveLength(0);
   });
   it('reconciles the wallet ledger exactly once for a duplicate release (no infinite DLQ re-entry, #12154)', async () => {
     // Released-before-reconcile ordering: a release Webhook re-delivered after
