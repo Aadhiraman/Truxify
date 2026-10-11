@@ -115,7 +115,7 @@ async function flushAuditLogs() {
             logger.error({ err: error, count: batchToWrite.length }, 'Failed to insert audit logs');
             // In production, push to dead-letter queue or file
             // For now, log to console as fallback
-            console.error('AUDIT FALLBACK:', JSON.stringify(batchToWrite));
+            logger.error('AUDIT FALLBACK:', JSON.stringify(batchToWrite));
         }
     } catch (err) {
         logger.error({ err }, 'Unexpected error flushing audit logs');
