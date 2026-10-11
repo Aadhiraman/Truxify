@@ -486,7 +486,7 @@ describe('ShardManager', () => {
       await expect(
         import('../../src/services/sharding/ShardManager.js')
       ).rejects.toThrow(
-        'missing shard password env vars: SHARD_PASSWORD_NORTH, SHARD_PASSWORD_SOUTH, SHARD_PASSWORD_EAST, SHARD_PASSWORD_WEST'
+        'Missing required shard password env vars: SHARD_PASSWORD_NORTH, SHARD_PASSWORD_SOUTH, SHARD_PASSWORD_EAST, SHARD_PASSWORD_WEST'
       );
     });
   });
