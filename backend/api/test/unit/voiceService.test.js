@@ -217,7 +217,10 @@ describe('voiceService', () => {
 
   describe('processVoiceQuery', () => {
     it('returns mock response when API keys are missing', async () => {
-      const result = await processVoiceQuery('user-1', 'booking-1', Buffer.from('audio'), 'audio.wav');
+      // Buffer byte-sum sampling lands on the payment sample for 'audio'
+      // (530 % 3 = 2); the textQuery override deterministically selects the
+      // location/status query this test exercises.
+      const result = await processVoiceQuery('user-1', 'booking-1', Buffer.from('audio'), 'audio.wav', 'Where is my package?');
 
       expect(result.transcript).toBeTruthy();
       expect(result.response_text).toBeTruthy();
@@ -239,16 +242,24 @@ describe('voiceService', () => {
       }));
       mockSupabaseFrom.mockReturnValue({ select: selectFn });
 
-      const result = await processVoiceQuery('user-1', 'booking-1', Buffer.from('audio'), 'audio.wav');
+      // Buffer byte-sum sampling lands on the payment sample for 'audio'
+      // (530 % 3 = 2); the textQuery override deterministically selects the
+      // location/status query this test exercises.
+      const result = await processVoiceQuery('user-1', 'booking-1', Buffer.from('audio'), 'audio.wav', 'Where is my package?');
 
       expect(result.transcript).toBeTruthy();
-      expect(result.response_text).toContain('in_transit');
+      // The spoken response humanizes the DB enum ('in_transit' → 'in transit')
+      // — TTS would otherwise read the underscore aloud.
+      expect(result.response_text).toContain('in transit');
     });
 
     it('returns mock when only OPENAI_API_KEY is set', async () => {
       process.env.ELEVENLABS_API_KEY = 'test-key';
 
-      const result = await processVoiceQuery('user-1', 'booking-1', Buffer.from('audio'), 'audio.wav');
+      // Buffer byte-sum sampling lands on the payment sample for 'audio'
+      // (530 % 3 = 2); the textQuery override deterministically selects the
+      // location/status query this test exercises.
+      const result = await processVoiceQuery('user-1', 'booking-1', Buffer.from('audio'), 'audio.wav', 'Where is my package?');
 
       expect(result.audio_url).toMatch(/^\/api\/voice\/audio\//);
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -259,7 +270,10 @@ describe('voiceService', () => {
     it('returns mock when only ELEVENLABS_API_KEY is set', async () => {
       process.env.OPENAI_API_KEY = 'test-key';
 
-      const result = await processVoiceQuery('user-1', 'booking-1', Buffer.from('audio'), 'audio.wav');
+      // Buffer byte-sum sampling lands on the payment sample for 'audio'
+      // (530 % 3 = 2); the textQuery override deterministically selects the
+      // location/status query this test exercises.
+      const result = await processVoiceQuery('user-1', 'booking-1', Buffer.from('audio'), 'audio.wav', 'Where is my package?');
 
       expect(result.audio_url).toMatch(/^\/api\/voice\/audio\//);
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -270,7 +284,10 @@ describe('voiceService', () => {
     it('returns mock when neither key is present regardless of order data', async () => {
       mockSupabaseFrom.mockReturnValue({ select: vi.fn(() => ({ eq: vi.fn(() => ({ or: vi.fn(() => ({ maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })) })) })) })) });
 
-      const result = await processVoiceQuery('user-1', 'booking-1', Buffer.from('audio'), 'audio.wav');
+      // Buffer byte-sum sampling lands on the payment sample for 'audio'
+      // (530 % 3 = 2); the textQuery override deterministically selects the
+      // location/status query this test exercises.
+      const result = await processVoiceQuery('user-1', 'booking-1', Buffer.from('audio'), 'audio.wav', 'Where is my package?');
 
       // Should still return a valid mock response even with no booking data
       expect(result.transcript).toBeTruthy();
