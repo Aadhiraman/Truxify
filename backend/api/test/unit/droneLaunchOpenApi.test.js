@@ -54,13 +54,13 @@ describe('Drone launch OpenAPI contract', () => {
       properties: expect.objectContaining({
         trip_id: expect.objectContaining({
           type: 'string',
-          pattern: '^[a-zA-Z0-9_\-:.]{1,64}$',
+          pattern: '^[a-zA-Z0-9_\\-:.]{1,64}$',
           minLength: 1,
           maxLength: 64,
         }),
         parcel_id: expect.objectContaining({
           type: 'string',
-          pattern: '^[a-zA-Z0-9_\-:.]{1,64}$',
+          pattern: '^[a-zA-Z0-9_\\-:.]{1,64}$',
           minLength: 1,
           maxLength: 64,
         }),
@@ -81,6 +81,14 @@ describe('Drone launch OpenAPI contract', () => {
         lng: expect.objectContaining({ type: 'number', minimum: -180, maximum: 180 }),
       }),
     });
+
+    // Generated clients compile the documented pattern; an unescaped `_-:`
+    // would be an out-of-order range and throw.
+    for (const field of ['trip_id', 'parcel_id']) {
+      const documented = new RegExp(schema.properties[field].pattern);
+      expect(documented.test('trip-1:a.b_c')).toBe(true);
+      expect(documented.test('trip 1')).toBe(false);
+    }
   });
 
   it('documents launch responses and the 25 km safety limit', () => {
