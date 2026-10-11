@@ -8,6 +8,8 @@
 
 import fs from 'fs';
 import path from 'path';
+import i18next from 'i18next';
+import middleware from 'i18next-http-middleware';
 import logger from './logger.js';
 
 const DEFAULT_LOCALE = 'en';
@@ -16,9 +18,6 @@ const SUPPORTED_LOCALES = ['en', 'ta', 'hi', 'es'];
 // Cache loaded translation dictionaries to prevent repetitive disk I/O
 const translationCache = {};
 
-function loadLocaleDictionary(locale) {
-  if (translationCache[locale]) {
-    return translationCache[locale];
 const enDict = (() => {
   try {
     return JSON.parse(fs.readFileSync(path.join(__dirname, '../locales/en.json')));
@@ -28,6 +27,24 @@ const enDict = (() => {
       '[i18n] Failed to load en.json locale, falling back to empty object'
     );
     return {};
+  }
+})();
+
+const esDict = (() => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, '../locales/es.json')));
+  } catch (err) {
+    logger.warn(
+      { event: 'I18N_LOCALE_LOAD_ERROR', locale: 'es', error: err && err.message },
+      '[i18n] Failed to load es.json locale, falling back to empty object'
+    );
+    return {};
+  }
+})();
+
+function loadLocaleDictionary(locale) {
+  if (translationCache[locale]) {
+    return translationCache[locale];
   }
 
   try {
@@ -101,13 +118,9 @@ export function i18n(defaultLang = DEFAULT_LOCALE) {
       req.locale = DEFAULT_LOCALE;
       req.t = (key) => key;
       next();
-    logger.warn(
-      { event: 'I18N_LOCALE_LOAD_ERROR', locale: 'es', error: err && err.message },
-      '[i18n] Failed to load es.json locale, falling back to empty object'
-    );
-    return {};
-  }
-})();
+    }
+  };
+}
 
 i18next
   .use(middleware.LanguageDetector)
@@ -127,10 +140,8 @@ export const errorTranslationInterceptor = (req, res, next) => {
       const translated = req.t(body.error, { defaultValue: body.error });
       body.error = translated;
     }
+    return originalJson.call(this, body);
   };
-}
-
-export default i18n;
   next();
 };
 
