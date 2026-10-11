@@ -94,8 +94,10 @@ describe('GET /api/health', () => {
     expect(res.body.status).toBe('degraded');
     expect(res.body.services.supabase).toBe('failed');
     expect(loggerErrorSpy).toHaveBeenCalledWith(
-      { event: 'HEALTH_SUPABASE_ERROR', error: 'Supabase network error' },
-      '[health] Supabase check failed'
+      // 7226f91d8 deliberately renamed the health events to *_CHECK_FAILED
+      // and dropped the '[health]' message prefix.
+      { event: 'HEALTH_SUPABASE_CHECK_FAILED', error: 'Supabase network error' },
+      'Supabase check failed'
     );
   });
 
@@ -130,8 +132,8 @@ describe('GET /api/health', () => {
     expect(res.body.status).toBe('degraded');
     expect(res.body.services.mongodb).toBe('failed');
     expect(loggerErrorSpy).toHaveBeenCalledWith(
-      { event: 'HEALTH_MONGO_ERROR', error: 'MongoDB timeout' },
-      '[health] MongoDB check failed'
+      { event: 'HEALTH_MONGODB_CHECK_FAILED', error: 'MongoDB timeout' },
+      'MongoDB check failed'
     );
   });
 
@@ -144,8 +146,8 @@ describe('GET /api/health', () => {
     expect(res.body.status).toBe('ok');
     expect(res.body.services.redis).toBe('failed');
     expect(loggerErrorSpy).toHaveBeenCalledWith(
-      { event: 'HEALTH_REDIS_ERROR', error: 'Redis connection refused' },
-      '[health] Redis check failed'
+      { event: 'HEALTH_REDIS_CHECK_FAILED', error: 'Redis connection refused' },
+      'Redis check failed'
     );
   });
 
