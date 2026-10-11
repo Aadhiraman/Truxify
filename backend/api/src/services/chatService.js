@@ -13,6 +13,14 @@ const RATE_LIMIT_WINDOW_SEC = 60;
 const MAX_MESSAGES_PER_WINDOW = 60;
 const ENCRYPTION_SECRET = process.env.CHAT_ENCRYPTION_SECRET || 'truxify-default-chat-secret-change-me';
 
+function parseAttachmentContent(raw) {
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return raw;
+    }
+}
+
 /**
  * Checks if a user has exceeded the chat rate limit.
  * @param {string} userId 
@@ -74,7 +82,7 @@ export async function saveChatMessage({ orderId, senderId, senderRole, type, con
     // Return with decrypted content for immediate broadcast
     return {
         ...data,
-        content: type === 'text' ? content : JSON.parse(content),
+        content: type === 'text' ? content : parseAttachmentContent(content),
         timestamp: data.created_at
     };
 }
@@ -115,7 +123,7 @@ export async function getChatHistory(orderId, limit = 50, before = null) {
         type: msg.message_type,
         content: msg.message_type === 'text'
             ? decryptMessage(msg.encrypted_content, ENCRYPTION_SECRET)
-            : JSON.parse(msg.encrypted_content),
+            : parseAttachmentContent(msg.encrypted_content),
         isRead: msg.is_read,
         timestamp: msg.created_at
     })).reverse(); // Return chronological order
