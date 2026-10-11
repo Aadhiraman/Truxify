@@ -1,12 +1,13 @@
 """Differential placement and scaling regressions for ordered shelf search.
 
-The linear oracle below is the unchanged _pack_packages body from main
-06da794fd3369ee86e3d062056ec8ecc2ebc121a. It uses the unchanged shelf
-placement authority; no index/search implementation is shared with the oracle.
+The linear oracle retains the pre-index full shelf scan. Numeric observations
+and emitted coordinates now follow the conservative geometry contract; the
+placement authority is shared, but no index/search implementation is shared.
 """
 
 import math
 import random
+from fractions import Fraction
 from types import SimpleNamespace
 
 import pytest
@@ -21,11 +22,12 @@ def _linear_pack(
 
     Returns ``(arrangements, unpacked_indices, utilization_pct)``.
     """
+    packages, truck = packing.own_inputs(packages, truck)
     truck_l = truck["length"]
     truck_w = truck["width"]
     truck_h = truck["height"]
     max_weight = truck["max_weight"]
-    truck_volume = truck_l * truck_w * truck_h
+    truck_volume = Fraction(truck_l) * Fraction(truck_w) * Fraction(truck_h)
 
     if truck_volume <= 0 or max_weight <= 0:
         return (
@@ -36,19 +38,19 @@ def _linear_pack(
         )
 
     indexed = [(i, p) for i, p in enumerate(packages)]
-    indexed.sort(key=lambda t: t[1]["length"] * t[1]["width"] * t[1]["height"], reverse=True)
+    indexed.sort(key=lambda t: Fraction(t[1]["length"]) * Fraction(t[1]["width"]) * Fraction(t[1]["height"]), reverse=True)
 
     shelves: list[packing._Shelf] = []
     arrangements = [None] * len(packages)
     unpacked: list[int] = []
-    packed_weight = 0.0
-    packed_volume = 0.0
+    packed_weight = Fraction(0)
+    packed_volume = Fraction(0)
 
     for idx, pkg in indexed:
         pkg_length, pkg_width, pkg_height = pkg["length"], pkg["width"], pkg["height"]
         pkg_weight = pkg["weight"]
 
-        if packed_weight + pkg_weight > max_weight:
+        if packed_weight + Fraction(pkg_weight) > Fraction(max_weight):
             arrangements[idx] = {
                 "package_index": idx,
                 "position": {"x": 0.0, "y": 0.0, "z": 0.0},
@@ -62,26 +64,26 @@ def _linear_pack(
         placed = False
         for i, shelf in enumerate(shelves):
             if i + 1 < len(shelves):
-                clearance = shelves[i + 1].z_bottom - shelf.z_bottom
+                clearance = Fraction(shelves[i + 1].z_bottom) - Fraction(shelf.z_bottom)
             else:
-                clearance = truck_h - shelf.z_bottom
+                clearance = Fraction(truck_h) - Fraction(shelf.z_bottom)
 
             pos = shelf.try_place(pkg_length, pkg_width, pkg_height, max_height_limit=clearance)
             if pos is not None:
                 arrangements[idx] = {
                     "package_index": idx,
-                    "position": {"x": round(pos["x"], 4), "y": round(pos["y"], 4), "z": round(pos["z"], 4)},
+                    "position": {"x": pos["x"], "y": pos["y"], "z": pos["z"]},
                     "rotated": pos["rotated"],
                     "orientation": pos["orientation"],
                     "fits": True,
                 }
-                packed_weight += pkg_weight
-                packed_volume += pkg_length * pkg_width * pkg_height
+                packed_weight += Fraction(pkg_weight)
+                packed_volume += Fraction(pkg_length) * Fraction(pkg_width) * Fraction(pkg_height)
                 placed = True
                 break
 
         if not placed:
-            z_offset = sum(s.shelf_height for s in shelves)
+            z_offset = packing.upward_sum(shelves[-1].z_bottom, shelves[-1].shelf_height) if shelves else 0.0
             if z_offset >= truck_h:
                 arrangements[idx] = {
                     "package_index": idx,
@@ -93,18 +95,18 @@ def _linear_pack(
                 unpacked.append(idx)
                 continue
 
-            new_shelf = packing._Shelf(z_offset, truck_l, truck_w, truck_h - z_offset)
+            new_shelf = packing._Shelf(z_offset, truck_l, truck_w, Fraction(truck_h) - Fraction(z_offset))
             pos = new_shelf.try_place(pkg_length, pkg_width, pkg_height)
             if pos is not None:
                 arrangements[idx] = {
                     "package_index": idx,
-                    "position": {"x": round(pos["x"], 4), "y": round(pos["y"], 4), "z": round(pos["z"], 4)},
+                    "position": {"x": pos["x"], "y": pos["y"], "z": pos["z"]},
                     "rotated": pos["rotated"],
                     "orientation": pos["orientation"],
                     "fits": True,
                 }
-                packed_weight += pkg_weight
-                packed_volume += pkg_length * pkg_width * pkg_height
+                packed_weight += Fraction(pkg_weight)
+                packed_volume += Fraction(pkg_length) * Fraction(pkg_width) * Fraction(pkg_height)
                 shelves.append(new_shelf)
             else:
                 arrangements[idx] = {
@@ -116,7 +118,7 @@ def _linear_pack(
                 }
                 unpacked.append(idx)
 
-    utilization = round((packed_volume / truck_volume) * 100.0, 2) if truck_volume > 0 else 0.0
+    utilization = round(float((packed_volume / truck_volume) * 100), 2) if truck_volume > 0 else 0.0
     return arrangements, sorted(unpacked), utilization
 
 
@@ -133,7 +135,7 @@ def _packages(count, seed):
 
 @pytest.mark.parametrize("seed", range(30))
 def test_complete_outputs_match_frozen_linear_oracle(seed):
-    """Retain arrangement, orientation, unpacked order and utilization exactly."""
+    """Compare complete index results with the independent full shelf scan."""
     packages = _packages(180 + seed, seed)
     truck = {"length": 3.0, "width": 2.0, "height": 8.0 + seed, "max_weight": 300.0 + seed * 10}
     assert packing._pack_packages(packages, truck) == _linear_pack(packages, truck)
@@ -161,8 +163,8 @@ def test_exhausted_shelves_have_linear_placement_attempts(monkeypatch, count):
 
 
 @pytest.mark.parametrize("dimension", [0.001, 0.1, 0.3, 1.0, math.nextafter(1.0, 0.0)])
-def test_many_shelf_z_positions_keep_original_summation(dimension):
-    """Do not reassociate height sums or change rounded z positions."""
+def test_many_shelf_z_positions_match_conservative_scan(dimension):
+    """Conservative emitted shelf positions agree between scan and index."""
     packages = [{"length": 1.0, "width": 1.0, "height": dimension, "weight": 1.0}] * 220
     truck = {"length": 1.0, "width": 1.0, "height": 240 * dimension, "max_weight": 220.0}
     assert packing._pack_packages(packages, truck) == _linear_pack(packages, truck)
@@ -170,7 +172,7 @@ def test_many_shelf_z_positions_keep_original_summation(dimension):
 
 @pytest.mark.parametrize("value", [0.0, -1.0, math.inf])
 def test_unsupported_inputs_keep_linear_scan(monkeypatch, value):
-    """Keep legacy arithmetic/fit behavior rather than applying index bounds."""
+    """Zero mass uses scan; invalid mass is rejected before index allocation."""
     def forbidden(*args, **kwargs):
         """Fail if unsupported input creates a feasibility index."""
         raise AssertionError("legacy input must retain scan")
@@ -178,7 +180,11 @@ def test_unsupported_inputs_keep_linear_scan(monkeypatch, value):
     monkeypatch.setattr(packing, "ShelfFitIndex", forbidden)
     packages = [{"length": 1.0, "width": 1.0, "height": 1.0, "weight": value}] * 128
     truck = {"length": 2.0, "width": 2.0, "height": 32.0, "max_weight": 256.0}
-    assert packing._pack_packages(packages, truck) == _linear_pack(packages, truck)
+    if value == 0:
+        assert packing._pack_packages(packages, truck) == _linear_pack(packages, truck)
+    else:
+        with pytest.raises(ValueError):
+            packing._pack_packages(packages, truck)
 
 
 def test_small_inputs_do_not_allocate_index(monkeypatch):
@@ -204,7 +210,9 @@ def test_rounding_accepted_tiny_item_remains_a_candidate():
     index.update(0, shelf, 1.0)
     dimensions = (1e-17, 1.0, 1.0)
     assert index.find_first(dimensions) == 0
-    assert shelf.try_place(*dimensions) is not None
+    # The conservative shortlist may admit a false positive; exact geometry
+    # rejects positive cargo beyond the already occupied container edge.
+    assert shelf.try_place(*dimensions) is None
 
 
 def test_false_positive_does_not_hide_later_shelf():
