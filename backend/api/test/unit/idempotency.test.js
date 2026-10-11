@@ -485,5 +485,26 @@ describe('requireIdempotency middleware', () => {
       const cacheWrites = mockRedisRef.mock.set.mock.calls.filter(([k]) => !k.endsWith(':lock'));
       expect(cacheWrites).toHaveLength(0);
     });
+
+    it('restores res.json and does not cache when downstream error handler responds with non-2xx', async () => {
+      const middleware = requireIdempotency();
+      mockRedisRef.mock.get.mockResolvedValue(null);
+      mockRedisRef.mock.set.mockResolvedValue('OK');
+
+      const req = makeReq({ headers: { 'x-idempotency-key': 'err-response-key' } });
+      const res = makeRes({ statusCode: 200 });
+      const originalJson = res.json;
+      const next = vi.fn().mockImplementationOnce(() => {
+        res.status(500);
+        res.json({ error: 'Internal server error' });
+      });
+
+      await middleware(req, res, next);
+
+      expect(res.json).toBe(originalJson);
+      expect(originalJson).toHaveBeenCalledWith({ error: 'Internal server error' });
+      const cacheWrites = mockRedisRef.mock.set.mock.calls.filter(([k]) => !k.endsWith(':lock'));
+      expect(cacheWrites).toHaveLength(0);
+    });
   });
 });
