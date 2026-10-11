@@ -105,7 +105,8 @@ class ChaosService {
                 headers: {
                     'Authorization': `Bearer ${this.gremlinApiKey}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                timeout: 30000
             }
         );
 
@@ -136,7 +137,8 @@ class ChaosService {
                 headers: {
                     'Authorization': `Bearer ${this.gremlinApiKey}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                timeout: 30000
             }
         );
 
@@ -168,7 +170,8 @@ class ChaosService {
                 headers: {
                     'Authorization': `Bearer ${this.gremlinApiKey}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                timeout: 30000
             }
         );
 
@@ -199,7 +202,8 @@ class ChaosService {
                 headers: {
                     'Authorization': `Bearer ${this.gremlinApiKey}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                timeout: 30000
             }
         );
 
@@ -229,7 +233,8 @@ class ChaosService {
                 headers: {
                     'Authorization': `Bearer ${this.gremlinApiKey}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                timeout: 30000
             }
         );
 
