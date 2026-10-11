@@ -13,7 +13,7 @@ import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 import numpy as np
 import requests
@@ -379,6 +379,43 @@ def _optimal_accepted_pairs(cost: np.ndarray) -> list[tuple[int, int]]:
     return sorted(pairs)
 
 
+
+def _snapshot_bilateral_inputs(
+    loads: List[Dict[str, Any]],
+    drivers: List[Dict[str, Any]],
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Freeze the admitted caller records for the rest of the pipeline.
+
+    Validation admits the caller-owned dicts, but routing-matrix construction
+    and the Hungarian pass then read the same mutable objects: a caller thread
+    replacing a value (or the list length changing) between admission and the
+    cost-matrix build silently corrupted the objective. Validated numeric
+    fields are written back as floats — a coordinate string like "0" passed
+    validation but raised TypeError in the Haversine math.
+    """
+    load_numeric_fields = (
+        "origin_lat", "origin_lng", "dest_lat", "dest_lng",
+        "weight_kg", "length_m", "width_m", "height_m", "deadline_hours",
+    )
+    driver_numeric_fields = (
+        "current_lat", "current_lng", "max_weight_kg", "max_length_m",
+        "max_width_m", "max_height_m", "rating",
+        "preferred_dest_lat", "preferred_dest_lng",
+    )
+
+    def _freeze(record: Dict[str, Any], fields) -> Dict[str, Any]:
+        frozen = dict(record)
+        for field in fields:
+            value = frozen.get(field)
+            if value is not None:
+                frozen[field] = float(value)
+        return frozen
+
+    return (
+        [_freeze(load, load_numeric_fields) for load in loads],
+        [_freeze(driver, driver_numeric_fields) for driver in drivers],
+    )
+
 def match_bilateral(
     loads: List[Dict[str, Any]],
     drivers: List[Dict[str, Any]],
@@ -405,6 +442,10 @@ def match_bilateral(
         ``unmatched_drivers`` – indices of drivers without a match
     """
     _validate_bilateral_inputs(loads, drivers)
+
+    # Freeze the admitted inputs: the matrix build and Hungarian pass must not
+    # observe caller mutations made after validation.
+    loads, drivers = _snapshot_bilateral_inputs(loads, drivers)
 
     n_loads = len(loads)
     n_drivers = len(drivers)
