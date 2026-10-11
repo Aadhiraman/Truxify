@@ -72,7 +72,7 @@ export async function handleFastagWebhook(req, res, next) {
       }
     }
 
-    const { transaction, gpsContext } = payload;
+    const { transaction, gpsContext } = payload || {};
     const txData = transaction || payload;
 
     const result = await processFastagTransaction(txData, gpsContext);
