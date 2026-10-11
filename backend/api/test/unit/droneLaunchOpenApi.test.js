@@ -54,13 +54,13 @@ describe('Drone launch OpenAPI contract', () => {
       properties: expect.objectContaining({
         trip_id: expect.objectContaining({
           type: 'string',
-          pattern: '^[a-zA-Z0-9_\-:.]{1,64}$',
+          pattern: '^[a-zA-Z0-9_\\-:.]{1,64}$',
           minLength: 1,
           maxLength: 64,
         }),
         parcel_id: expect.objectContaining({
           type: 'string',
-          pattern: '^[a-zA-Z0-9_\-:.]{1,64}$',
+          pattern: '^[a-zA-Z0-9_\\-:.]{1,64}$',
           minLength: 1,
           maxLength: 64,
         }),
