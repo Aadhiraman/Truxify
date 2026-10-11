@@ -17,7 +17,7 @@ describe("DAO Quadratic Voting", function () {
     await token.transfer(voter.address, 100);
     await token.connect(voter).approve(await dao.getAddress(), 100);
 
-    await dao.registerVoter(ethers.id("identity:alice"));
+    await dao.connect(voter).registerVoter(ethers.id("identity:alice"));
 
     await dao.createProposal("Reduce Corridor Tariff by 5%", 3600);
 
