@@ -178,7 +178,8 @@ export const CacheKeyBuilder = {
     // Namespaces can be multi-segment ('user:profile') — match the longest
     // registered prefix so build() output round-trips; fall back to the
     // first segment for unknown namespaces.
-    const prefixes = CacheNamespace.all()
+    // CacheNamespace.all() returns a Map — spread its values first.
+    const prefixes = [...CacheNamespace.all().values()]
       .map((ns) => ns.prefix)
       .sort((a, b) => b.length - a.length);
     const nsPrefix = prefixes.find((p) => key === p || key.startsWith(p + SEP)) || null;
