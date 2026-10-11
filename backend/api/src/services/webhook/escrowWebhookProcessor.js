@@ -65,6 +65,15 @@ async function reconcileWalletLedger(order, txHash) {
     return;
   }
   const { data, error } = await requireDb()
+    // Before:
+// catch (err) {
+//   throw new Error('OCR processing failed.');
+// }
+
+// After:
+catch (err) {
+  throw new Error('OCR processing failed.', { cause: err });
+}
     .from('wallet_transactions')
     .update({
       status: 'confirmed',
