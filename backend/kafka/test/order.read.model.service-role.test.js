@@ -21,6 +21,7 @@ vi.mock('../repositories/event.repository.js', () => ({
 }));
 
 import { OrderReadModel } from '../cqrs/order.read.model.js';
+import { ORDER_STATUSES } from '../../api/src/core/orders/read-model-schema.js';
 
 describe('OrderReadModel service-role access (issue #9202)', () => {
   beforeEach(() => {
@@ -53,7 +54,8 @@ describe('OrderReadModel service-role access (issue #9202)', () => {
     const stats = await model.getOrderStats();
 
     expect(stats.pending).toBe(1);
-    expect(serviceClient.from).toHaveBeenCalledTimes(10);
+    // One count query per canonical status (#13871).
+    expect(serviceClient.from).toHaveBeenCalledTimes(ORDER_STATUSES.length);
     expect(serviceClient.from).toHaveBeenCalledWith('orders_read_model');
     expect(anonFrom).not.toHaveBeenCalled();
   });

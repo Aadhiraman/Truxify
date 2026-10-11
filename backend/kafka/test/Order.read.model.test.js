@@ -374,11 +374,21 @@ describe('OrderReadModel queries use ORDER_READ_MODEL_TABLE', () => {
     expect(state.eqCalls).toEqual(
       expect.arrayContaining([
         [ORDER_READ_MODEL_TABLE, 'status', 'created'],
-        [ORDER_READ_MODEL_TABLE, 'payload->>status', 'created'],
         [ORDER_READ_MODEL_TABLE, 'payload->>customer_id', 'c1'],
       ])
     );
     expect(list.map((r) => r.order_id)).toEqual(['order_a']);
+  });
+
+  it('getAllOrdersReadModel filters by driver alone without a stray customer filter', async () => {
+    await seed('order_d1', 'in_transit', { customer_id: 'c1', driver_id: 'd9' });
+    await seed('order_d2', 'in_transit', { customer_id: 'c2', driver_id: 'd1' });
+    state.eqCalls.length = 0;
+
+    const list = await orderReadModel.getAllOrdersReadModel({ driverId: 'd9' });
+
+    expect(state.eqCalls).toEqual([[ORDER_READ_MODEL_TABLE, 'payload->>driver_id', 'd9']]);
+    expect(list.map((r) => r.order_id)).toEqual(['order_d1']);
   });
 
   it('getOrderStats counts by lowercase status on the canonical table', async () => {
@@ -406,5 +416,4 @@ describe('OrderReadModel queries use ORDER_READ_MODEL_TABLE', () => {
     expect(row.payload.customer_id).toBe('c1');
     expect(row.data).toBeUndefined();
   });
-});
 });
