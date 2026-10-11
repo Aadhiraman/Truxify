@@ -61,8 +61,6 @@ beforeEach(() => {
     adapterErrors: [],
   });
 });
-    worker.stopOutboxRelayWorker();
-  });
 
   afterEach(() => {
     worker.stopOutboxRelayWorker();
