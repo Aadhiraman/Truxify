@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import express from 'express';
 import { requireIdempotency } from '../../src/middleware/idempotency.js';
 
 const mockRedisRef = vi.hoisted(() => {
@@ -457,14 +458,20 @@ describe('requireIdempotency middleware', () => {
       expect(res.json).toBe(originalJson);
     });
 
-    it('handles JSON serialization failure gracefully without crashing and restores res.json', async () => {
+    it('restores res.json and propagates error when circular response fails serialization in Express', async () => {
       const middleware = requireIdempotency();
       mockRedisRef.mock.get.mockResolvedValue(null);
       mockRedisRef.mock.set.mockResolvedValue('OK');
 
-      const req = makeReq({ headers: { 'x-idempotency-key': 'circular-key' } });
-      const res = makeRes({ statusCode: 200 });
+      const app = express();
+      const res = Object.create(express.response);
+      res.app = app;
+      res.statusCode = 200;
+      res.once = vi.fn();
+      res.removeListener = vi.fn();
+
       const originalJson = res.json;
+      const req = makeReq({ headers: { 'x-idempotency-key': 'circular-key' } });
       const next = makeNext();
 
       await middleware(req, res, next);
@@ -472,9 +479,8 @@ describe('requireIdempotency middleware', () => {
       const circular = {};
       circular.self = circular;
 
-      expect(() => res.json(circular)).not.toThrow();
+      expect(() => res.json(circular)).toThrow(TypeError);
       expect(res.json).toBe(originalJson);
-      expect(originalJson).toHaveBeenCalledWith(circular);
 
       const cacheWrites = mockRedisRef.mock.set.mock.calls.filter(([k]) => !k.endsWith(':lock'));
       expect(cacheWrites).toHaveLength(0);
