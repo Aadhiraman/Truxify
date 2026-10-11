@@ -47,7 +47,11 @@ describe('FlashbotsRelayerService (issue #10183)', () => {
     process.env.FLASHBOTS_RELAY_URL = 'https://relay.example.com';
     // The service posts with global fetch (the axios-era suite mocked axios).
     const fetchMock = vi.fn().mockResolvedValue({
+      // Without ok:true the service treats the response as a failure and
+      // walks its relay fallback chain (the phantom extra fetches).
+      ok: true,
       json: async () => ({ result: '0x1234' }),
+      text: async () => '{"result":"0x1234"}',
     });
     vi.stubGlobal('fetch', fetchMock);
 
