@@ -572,6 +572,37 @@ export function createSupabaseMock(initialStore = {}) {
           estimated_price: args.p_estimated_price,
         };
         store.orders.push(order);
+        // The real RPC also inserts the default 8-milestone timeline and the
+        // marketplace load_offers row in the same transaction
+        // (20260723000003_create_order_tx.sql).
+        store.order_timeline = store.order_timeline || [];
+        const now = new Date().toISOString();
+        const DEFAULTS = [
+          ['Order Placed', true, 10], ['Truck Assigned', false, 20],
+          ['En Route to Pickup', false, 30], ['Arrived at Pickup', false, 35],
+          ['Goods Loaded', false, 40], ['In Transit', false, 50],
+          ['Arriving', false, 55], ['Delivered', false, 60],
+        ];
+        for (const [milestone, completed, sort_order] of DEFAULTS) {
+          store.order_timeline.push({
+            order_display_id: args.p_order_display_id,
+            milestone,
+            milestone_time: completed ? now : null,
+            completed,
+            sort_order,
+          });
+        }
+        store.load_offers = store.load_offers || [];
+        store.load_offers.push({
+          order_display_id: args.p_order_display_id,
+          customer_id: args.p_customer_id,
+          customer_name: args.p_customer_name,
+          pickup_address: args.p_pickup_address,
+          drop_address: args.p_drop_address,
+          goods_type: args.p_goods_type,
+          freight_value: args.p_total_amount,
+          status: 'available',
+        });
         return Promise.resolve({ data: order, error: null });
       }
       // Simulate update_order_and_load_offer: applies the change-drop update
