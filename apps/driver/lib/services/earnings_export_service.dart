@@ -83,7 +83,9 @@ class EarningsExportService {
       // exception. Use try/catch instead.)
       try {
         await file.delete();
-      } catch (_) {}
+      } catch (deleteErr) {
+        debugPrint('EarningsExportService: could not delete partial export file: $deleteErr');
+      }
       rethrow;
     }
 
@@ -95,7 +97,9 @@ class EarningsExportService {
       // immediately and rethrow (same catchError type-error fix as above).
       try {
         await file.delete();
-      } catch (_) {}
+      } catch (deleteErr) {
+        debugPrint('EarningsExportService: could not delete export file after share failure: $deleteErr');
+      }
       rethrow;
     }
 
