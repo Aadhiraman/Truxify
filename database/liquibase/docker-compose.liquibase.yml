@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   liquibase:
-    image: liquibase/liquibase:latest
+    image: liquibase/liquibase:4.23
     volumes:
       - ./:/liquibase/changelog
     environment:
