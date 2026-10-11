@@ -284,7 +284,7 @@ class GlobalStore extends EventEmitter {
         return {
             state: structuredClone(this.state),
             timestamp: Date.now(),
-            id: `snapshot_${Date.now()}`
+            id: `snapshot_${crypto.randomBytes(16).toString('hex')}`
         };
     }
     
