@@ -55,13 +55,21 @@ router.post(
   }),
   validateBody(requestBypassSchema),
   async (req, res) => {
-    const { truckId, bolId } = req.body;
-
     try {
         const { truckId, bolId } = req.body;
 
         if (!truckId || !bolId) {
             return res.status(400).json({ error: 'Missing required truck/load parameters' });
+        }
+
+        // Fail closed before doing any work: if the signing secret is not
+        // configured, no credential can ever be issued safely.
+        if (!hasWimSigningSecret()) {
+            logger.error(
+                { event: 'WIM_SIGNING_FAILURE', truckId, bolId, actorId: req.user.id },
+                '[WIM] Signing secret unavailable; refusing to issue bypass credential.',
+            );
+            return res.status(500).json({ error: 'Unable to issue bypass credential.' });
         }
 
         // Never trust client-supplied safetyScore / axleWeight / maxWeightLimit.
