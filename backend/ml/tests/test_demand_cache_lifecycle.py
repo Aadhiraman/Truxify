@@ -4,6 +4,7 @@ from threading import Barrier, Event
 from types import SimpleNamespace
 
 import pytest
+from app.models import base
 from app.models import demand_forecast as demand
 
 FEATURES = [12, 3, 0, 25., .5, 50, 15]
@@ -21,6 +22,11 @@ def model_tuple(value):
 @pytest.fixture(autouse=True)
 def clean_cache(monkeypatch):
     demand.reset_model_cache()
+    # These cache controls inject disk outcomes; the new native file suite
+    # exercises production snapshot coherence without replacing the reader.
+    monkeypatch.setattr(demand, 'load_model', base.load_model, raising=False)
+    monkeypatch.setattr(demand, 'load_model_snapshot', lambda name: SimpleNamespace(
+        model=demand.load_model(name), metadata=demand.get_model_meta(name)))
     monkeypatch.setattr(demand, 'model_exists', lambda name: True)
     monkeypatch.setattr(demand, 'get_model_meta', lambda name: {})
     yield
