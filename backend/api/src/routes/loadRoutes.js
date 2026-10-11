@@ -453,7 +453,11 @@ router.get('/stats', authenticate, userLimiter, requirePolicy('load-offer:browse
       });
 
       if (!error && data) {
-        statsData = typeof data === 'string' ? JSON.parse(data) : data;
+        try {
+          statsData = typeof data === 'string' ? JSON.parse(data) : data;
+        } catch (parseErr) {
+          logger.warn({ err: parseErr.message }, 'Failed to parse load stats from Supabase RPC');
+        }
       }
     }
 
