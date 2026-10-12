@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 from .base import load_model, model_exists, save_model
+from .trust_candidate import FEATURES, native_labels, validate_candidate
 
 logger = logging.getLogger(__name__)
 
@@ -78,13 +79,7 @@ def generate_synthetic_trust_data(n_samples: int = 1500) -> tuple:
     return X, risk_labels
 
 
-FEATURE_NAMES = [
-    "cancellation_rate",
-    "on_time_pct",
-    "avg_rating",
-    "dispute_count",
-    "is_verified",
-]
+FEATURE_NAMES = list(FEATURES)
 
 RISK_LABELS = {0: "Low", 1: "Medium", 2: "High"}
 
@@ -162,6 +157,7 @@ class TrustScorer:
         )
         model.fit(X_train_scaled, y_train)
 
+        validate_candidate(model, scaler)
         y_pred = model.predict(X_test_scaled)
         accuracy = accuracy_score(y_test, y_pred)
         report = classification_report(y_test, y_pred, output_dict=True)
@@ -198,6 +194,7 @@ class TrustScorer:
         model, scaler = loaded
         if not callable(getattr(model, "predict", None)) or not callable(getattr(scaler, "transform", None)):
             raise TypeError("Trust scorer artifact must contain a classifier and scaler")
+        validate_candidate(model, scaler)
         self._publish(model, scaler)
         logger.info("Trust scorer model loaded from persistence")
 
@@ -257,9 +254,14 @@ class TrustScorer:
             dispute_count,
             is_verified,
         ]])
+        if getattr(scaler, "feature_names_in_", None) is not None:
+            import pandas as pd
+            features = pd.DataFrame(features, columns=FEATURE_NAMES)
         features_scaled = scaler.transform(features)
-        risk_idx = int(model.predict(features_scaled)[0])
-        risk_category = RISK_LABELS.get(risk_idx, "Medium")
+        if features_scaled.shape != (1, 5) or not np.isfinite(features_scaled).all():
+            raise ValueError("Trust scaler returned invalid serving features")
+        risk_idx = int(native_labels(model, features_scaled)[0])
+        risk_category = RISK_LABELS[risk_idx]
 
         return {
             "trust_score": round(trust_score, 2),

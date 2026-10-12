@@ -9,6 +9,14 @@ from app.models import trust_scorer as module
 ARGS = (.1, 80.0, 4.0, 1, 1)
 
 
+@pytest.fixture(autouse=True)
+def lifecycle_estimator_seams(monkeypatch, request):
+    """Keep tag doubles for ownership tests; real native admission has its own gate."""
+    if request.node.originalname != "test_real_classifier_scaler_pair_persists_before_publication":
+        monkeypatch.setattr(module, "validate_candidate", lambda model, scaler: None)
+        monkeypatch.setattr(module, "native_labels", lambda model, values: model.predict(values))
+
+
 class Scaler:
     """Tag transformed data so an incompatible classifier cannot accept it."""
 
