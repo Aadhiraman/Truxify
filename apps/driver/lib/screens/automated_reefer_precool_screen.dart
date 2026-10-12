@@ -110,8 +110,9 @@ class _AutomatedReeferPrecoolScreenState extends State<AutomatedReeferPrecoolScr
 
   Widget _buildTemperatureDial(ReeferTelemetry t) {
     Color tempColor = Colors.cyan;
-    if (t.currentInternalTempF > 50) tempColor = Colors.redAccent;
-    else if (t.currentInternalTempF > 0) tempColor = Colors.orangeAccent;
+    if (t.currentInternalTempF > 50) {
+      tempColor = Colors.redAccent;
+    } else if (t.currentInternalTempF > 0) tempColor = Colors.orangeAccent;
 
     return Container(
       width: 250,

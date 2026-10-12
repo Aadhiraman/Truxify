@@ -97,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _heatmapData;
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  bool _hasPendingPods = false;
+  final bool _hasPendingPods = false;
 
   List<Marker>? _cachedMarkers;
   ll.LatLng? _lastDest;
@@ -185,8 +185,8 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription? _loadSubscription;
 
   String _hosStatus = 'off_duty';
-  int _hosDrivingMinutes = 0;
-  int _hosOnDutyMinutes = 0;
+  final int _hosDrivingMinutes = 0;
+  final int _hosOnDutyMinutes = 0;
 
   Timer? _autoHideTimer;
   LoadOffer? _latestNewLoad;

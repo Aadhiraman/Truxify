@@ -98,8 +98,9 @@ class _EcoLeaderboardScreenState extends State<EcoLeaderboardScreen> {
 
   Widget _buildDriverCard(DriverEcoScore driver, {required bool isCurrentUser}) {
     Color rankColor;
-    if (driver.rank == 1) rankColor = Colors.amber;
-    else if (driver.rank == 2) rankColor = Colors.blueGrey[300]!;
+    if (driver.rank == 1) {
+      rankColor = Colors.amber;
+    } else if (driver.rank == 2) rankColor = Colors.blueGrey[300]!;
     else if (driver.rank == 3) rankColor = Colors.brown[300]!;
     else rankColor = Colors.grey[400]!;
 

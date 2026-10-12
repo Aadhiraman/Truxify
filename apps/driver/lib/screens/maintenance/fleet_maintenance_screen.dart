@@ -4,7 +4,7 @@ import 'package:truxify_driver/models/obd_telemetry_model.dart';
 import 'package:truxify_driver/services/obd_maintenance_service.dart';
 
 class FleetMaintenanceScreen extends StatefulWidget {
-  const FleetMaintenanceScreen({Key? key}) : super(key: key);
+  const FleetMaintenanceScreen({super.key});
 
   @override
   State<FleetMaintenanceScreen> createState() => _FleetMaintenanceScreenState();

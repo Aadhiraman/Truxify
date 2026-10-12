@@ -130,7 +130,9 @@ class _DeliveryOtpScreenState extends State<DeliveryOtpScreen>
     try {
       final permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) return;
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
 
       final pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,

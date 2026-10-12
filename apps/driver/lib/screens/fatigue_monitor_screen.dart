@@ -70,8 +70,9 @@ class _FatigueMonitorScreenState extends State<FatigueMonitorScreen> {
 
     Color statusColor = Colors.grey;
     if (_isMonitoring) {
-      if (isCritical) statusColor = Colors.red;
-      else if (isDrowsy) statusColor = Colors.orange;
+      if (isCritical) {
+        statusColor = Colors.red;
+      } else if (isDrowsy) statusColor = Colors.orange;
       else statusColor = Colors.green;
     }
 

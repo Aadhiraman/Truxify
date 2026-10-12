@@ -1275,7 +1275,9 @@ class _TripsScreenState extends State<TripsScreen> {
                                           final loadId = rec.loadId;
                                           if (loadId.isEmpty) return;
                                           if (_submittingDeadheadLoadIds
-                                              .contains(loadId)) return;
+                                              .contains(loadId)) {
+                                            return;
+                                          }
                                           if (!mounted) return;
                                           setState(() {
                                             _submittingDeadheadLoadIds = {

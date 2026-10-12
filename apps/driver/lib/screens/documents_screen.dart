@@ -362,8 +362,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                                         ?.id,
                                   });
                               if (verifyRes['success'] == true) {
-                                if (dialogContext.mounted)
+                                if (dialogContext.mounted) {
                                   Navigator.pop(dialogContext);
+                                }
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -384,8 +385,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                                 throw Exception('Verification failed');
                               }
                             } catch (e) {
-                              if (dialogContext.mounted)
+                              if (dialogContext.mounted) {
                                 Navigator.pop(dialogContext);
+                              }
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
