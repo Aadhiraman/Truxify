@@ -119,6 +119,10 @@ class _PodCaptureScreenState extends State<PodCaptureScreen> {
                 backgroundColor: Colors.green,
               ),
             );
+            // The trailing pop below also fires in this same synchronous run
+            // (the State is not disposed until the frame ends) — return so a
+            // successful online save pops exactly once.
+            return;
           }
         } catch (e) {
           debugPrint('Immediate upload failed, will retry in background: $e');
