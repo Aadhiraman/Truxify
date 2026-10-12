@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'config/routes.dart';
 
 class TruxifyCustomerApp extends StatelessWidget {
-  const TruxifyCustomerApp({Key? key}) : super(key: key);
+  const TruxifyCustomerApp({super.key});
 
   @override
   Widget build(BuildContext context) {

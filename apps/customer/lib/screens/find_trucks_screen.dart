@@ -51,8 +51,8 @@ class _FindTrucksScreenState extends State<FindTrucksScreen> {
   };
 
   String _filterTruckType = 'Any';
-  Set<String> _selectedFilterTruckTypes = {};
-  Set<String> _selectedFilterCargoCategories = {};
+  final Set<String> _selectedFilterTruckTypes = {};
+  final Set<String> _selectedFilterCargoCategories = {};
   double _filterMinCapacity = 0;
   double _filterMaxCapacity = 25;
   String _filterMaterialType = 'Any';

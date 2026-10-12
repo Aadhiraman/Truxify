@@ -160,7 +160,7 @@ void main() {
 
 /// The screen's live indicator animates forever, so pumpAndSettle never
 /// settles (see #17587). Bounded pumps flush async work + transitions.
-Future<void> _boundedSettle(WidgetTester tester) async {
+Future<void> boundedSettle(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 500));
   await tester.pump();
@@ -168,7 +168,7 @@ Future<void> _boundedSettle(WidgetTester tester) async {
 
   testWidgets('renders Voice AI button and opens modal sheet on tap', (tester) async {
     await tester.pumpWidget(buildSubject());
-    await _boundedSettle(tester);
+    await boundedSettle(tester);
 
     // Verify Voice AI action tile exists
     final voiceAiTile = find.text('Voice AI');
@@ -177,9 +177,9 @@ Future<void> _boundedSettle(WidgetTester tester) async {
     // The tile sits below the fold in the tracking panel — scroll to it
     // before tapping (a raw tap on an off-screen widget is a no-op).
     await tester.ensureVisible(voiceAiTile);
-    await _boundedSettle(tester);
+    await boundedSettle(tester);
     await tester.tap(voiceAiTile);
-    await _boundedSettle(tester);
+    await boundedSettle(tester);
 
     // Verify Voice AI bottom sheet header
     expect(find.text('Truxify Voice AI Assistant'), findsOneWidget);
@@ -189,23 +189,23 @@ Future<void> _boundedSettle(WidgetTester tester) async {
 
   testWidgets('sends voice query when preset chip is tapped and shows response card', (tester) async {
     await tester.pumpWidget(buildSubject());
-    await _boundedSettle(tester);
+    await boundedSettle(tester);
 
     // Open Voice AI sheet (scroll the tile into view first — off-screen
     // taps are no-ops).
     await tester.ensureVisible(find.text('Voice AI'));
-    await _boundedSettle(tester);
+    await boundedSettle(tester);
     await tester.tap(find.text('Voice AI'));
-    await _boundedSettle(tester);
+    await boundedSettle(tester);
 
     // Tap preset query chip "Where is my package?" (scroll within the
     // sheet if it's below the fold).
     final chip = find.text('Where is my package?');
     await tester.ensureVisible(chip);
-    await _boundedSettle(tester);
+    await boundedSettle(tester);
     expect(chip, findsOneWidget);
     await tester.tap(chip);
-    await _boundedSettle(tester);
+    await boundedSettle(tester);
 
     // Verify sendVoiceQuery was called
     verify(() => mockOrderService.sendVoiceQuery(

@@ -161,7 +161,7 @@ void main() {
 
 /// The screen's live indicator animates forever, so pumpAndSettle never
 /// settles (see #17587). Bounded pumps flush async work + transitions.
-Future<void> _boundedSettle(WidgetTester tester) async {
+Future<void> boundedSettle(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 500));
   await tester.pump();
@@ -171,7 +171,7 @@ Future<void> _boundedSettle(WidgetTester tester) async {
     testWidgets('mounts the map widget and initiates WebSocket connection on load', (tester) async {
       await tester.pumpWidget(createTestWidget(tester));
       await tester.pump(); // Start data loading
-      await _boundedSettle(tester); // Wait for animations & state
+      await boundedSettle(tester); // Wait for animations & state
 
       // Verify the map widget mounts without errors
       expect(find.byType(FlutterMap), findsOneWidget);
@@ -185,7 +185,7 @@ Future<void> _boundedSettle(WidgetTester tester) async {
       expect(find.textContaining('Calculating…'), findsOneWidget);
 
       await tester.pump();
-      await _boundedSettle(tester);
+      await boundedSettle(tester);
 
       expect(find.textContaining('45 mins'), findsOneWidget);
     });
@@ -193,7 +193,7 @@ Future<void> _boundedSettle(WidgetTester tester) async {
     testWidgets('displays formatted milestone timestamp using milestone_time', (tester) async {
       await tester.pumpWidget(createTestWidget(tester));
       await tester.pump();
-      await _boundedSettle(tester);
+      await boundedSettle(tester);
 
       final dt = DateTime.parse('2026-08-03T00:00:00Z').toLocal();
       final expectedTimestamp =
@@ -245,7 +245,7 @@ Future<void> _boundedSettle(WidgetTester tester) async {
       });
 
       await tester.pumpWidget(createTestWidget(tester));
-      await _boundedSettle(tester);
+      await boundedSettle(tester);
 
       // First connection's auth frame — no refresh (initial load did it).
       messages.add(jsonEncode({'status': 'authenticated'}));
@@ -256,11 +256,11 @@ Future<void> _boundedSettle(WidgetTester tester) async {
       states.add(WsConnectionState.connected);
       await tester.pump();
       messages.add(jsonEncode({'status': 'authenticated'}));
-      await _boundedSettle(tester);
+      await boundedSettle(tester);
 
       // A duplicate auth frame on the same connection refreshes nothing.
       messages.add(jsonEncode({'status': 'authenticated'}));
-      await _boundedSettle(tester);
+      await boundedSettle(tester);
 
       expect(orderFetches, 2);
       expect(timelineFetches, 2);
@@ -292,7 +292,7 @@ Future<void> _boundedSettle(WidgetTester tester) async {
       });
 
       await tester.pumpWidget(createTestWidget(tester));
-      await _boundedSettle(tester);
+      await boundedSettle(tester);
 
       messages.add(jsonEncode({'status': 'authenticated'}));
       await tester.pump();
@@ -316,7 +316,7 @@ Future<void> _boundedSettle(WidgetTester tester) async {
         'lng': 72.85,
         'timestamp': '2026-08-03T01:00:00Z',
       });
-      await _boundedSettle(tester);
+      await boundedSettle(tester);
 
       verify(() => mockOrderService.fetchMlEta(
             tripId: 'TX1001',
@@ -376,7 +376,7 @@ Future<void> _boundedSettle(WidgetTester tester) async {
 
       await tester.pumpWidget(createTestWidget(tester));
       await tester.pump();
-      await _boundedSettle(tester);
+      await boundedSettle(tester);
 
       // The numeric order id must be coerced to a string and the realtime
       // subscription channel must be created. With `as String` this would

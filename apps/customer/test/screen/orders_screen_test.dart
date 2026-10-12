@@ -101,7 +101,7 @@ void main() {
   
 /// Live indicators on the pushed tracking screen animate forever, so
 /// pumpAndSettle can hang (see #17587). Bounded pumps instead.
-Future<void> _boundedSettle(WidgetTester tester) async {
+Future<void> boundedSettle(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 500));
   await tester.pump();
@@ -133,7 +133,7 @@ Future<void> _boundedSettle(WidgetTester tester) async {
       // Switch to history tab (index 1)
       final TabController tabController = tester.widget<TabBarView>(find.byType(TabBarView)).controller!;
       tabController.index = 1;
-      await _boundedSettle(tester);
+      await boundedSettle(tester);
 
       // Verify history order renders
       expect(find.byType(HistoryOrderCard), findsOneWidget);
@@ -148,7 +148,7 @@ Future<void> _boundedSettle(WidgetTester tester) async {
 
       // Tap the first active order
       await tester.tap(find.byType(ActiveOrderCard).first);
-      await _boundedSettle(tester);
+      await boundedSettle(tester);
 
       // Verify navigated to LiveTrackingScreen
       expect(find.byType(LiveTrackingScreen), findsOneWidget);
@@ -163,11 +163,11 @@ Future<void> _boundedSettle(WidgetTester tester) async {
       // Switch to history tab
       final TabController tabController = tester.widget<TabBarView>(find.byType(TabBarView)).controller!;
       tabController.index = 1;
-      await _boundedSettle(tester);
+      await boundedSettle(tester);
 
       // Tap the history order card
       await tester.tap(find.byType(HistoryOrderCard));
-      await _boundedSettle(tester);
+      await boundedSettle(tester);
 
       // Verify navigated to OrderDetailScreen
       expect(find.byType(OrderDetailScreen), findsOneWidget);

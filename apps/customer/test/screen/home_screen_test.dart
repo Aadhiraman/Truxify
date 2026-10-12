@@ -33,7 +33,7 @@ List<RouteCardData> computeUsualRoutes(List<Map<String, dynamic>> history) {
     final drop = order['drop_address']?.toString() ?? '';
     if (pickup.isEmpty || drop.isEmpty) continue;
 
-    final key = '${pickup}|||${drop}';
+    final key = '$pickup|||$drop';
     final existing = routeMap[key];
     final dateStr = order['pickup_date']?.toString() ?? '';
 

@@ -3,52 +3,52 @@ import 'package:go_router/go_router.dart';
 
 // Mock Screens for Navigation Hierarchy
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
   @override
   Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Home Dashboard')));
 }
 
 class LoginScreen extends StatelessWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
   @override
   Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Customer Login')));
 }
 
 class BookFreightScreen extends StatelessWidget {
   final String? truckType;
-  const BookFreightScreen({Key? key, this.truckType}) : super(key: key);
+  const BookFreightScreen({super.key, this.truckType});
   @override
   Widget build(BuildContext context) => Scaffold(body: Center(child: Text('Book Freight Workspace (Truck: ${truckType ?? 'Standard'})')));
 }
 
 class ActiveShipmentsScreen extends StatelessWidget {
-  const ActiveShipmentsScreen({Key? key}) : super(key: key);
+  const ActiveShipmentsScreen({super.key});
   @override
   Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Active Shipments List')));
 }
 
 class OrderDetailScreen extends StatelessWidget {
   final String orderId;
-  const OrderDetailScreen({Key? key, required this.orderId}) : super(key: key);
+  const OrderDetailScreen({super.key, required this.orderId});
   @override
   Widget build(BuildContext context) => Scaffold(body: Center(child: Text('Order Detail View: $orderId')));
 }
 
 class TrackingScreen extends StatelessWidget {
   final String trackingNumber;
-  const TrackingScreen({Key? key, required this.trackingNumber}) : super(key: key);
+  const TrackingScreen({super.key, required this.trackingNumber});
   @override
   Widget build(BuildContext context) => Scaffold(body: Center(child: Text('Live Shipment Tracking: $trackingNumber')));
 }
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
   @override
   Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Customer Profile')));
 }
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
   @override
   Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Settings & Preferences')));
 }
