@@ -57,7 +57,6 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
   bool _isLoading = true;
   bool _isSubmitting = false;
   String? _createdOrderId;
-  String? _createdOrderDisplayId;
   String? _upiDeepLink;
   String? _amountInr;
   String? _upiIntentError;
@@ -214,7 +213,6 @@ final orderId = _createdOrderId ?? await _orderService.createOrder(
         setState(() {
           _upiDeepLink = body['deep_link']?.toString();
           _amountInr = body['amount_inr']?.toString();
-          _createdOrderDisplayId = body['order_ref']?.toString();
           _isAwaitingUpi = true;
         });
       }

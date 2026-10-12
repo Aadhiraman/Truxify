@@ -54,7 +54,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
   String _driverName = _loadingDriverText;
   String? _driverPhone;
   String _truckNumber = _loadingTruckText;
-  bool _isLoadingDetails = false;
   LatLng? _previousPosition;
   LatLng? _currentPosition;
   ResilientWebSocket? _trackingWebSocket;
@@ -549,16 +548,9 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
         setState(() {
           _driverName = _fallbackDriverText;
           _truckNumber = _fallbackTruckText;
-          _isLoadingDetails = false;
         });
       }
       return;
-    }
-
-    if (mounted) {
-      setState(() {
-        _isLoadingDetails = true;
-      });
     }
 
     try {
@@ -585,7 +577,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
         final tnFallback = _order?['truck_number']?.toString().trim();
         _truckNumber = results[1] ??
             (tnFallback != null && tnFallback.isNotEmpty ? tnFallback : _fallbackTruckText);
-        _isLoadingDetails = false;
       });
     } catch (e) {
       debugPrint('Error fetching driver/truck details: $e');
@@ -596,7 +587,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
       }
 
       setState(() {
-        _isLoadingDetails = false;
         final dnFallback = _order?['driver_name']?.toString().trim();
         _driverName = dnFallback != null && dnFallback.isNotEmpty ? dnFallback : _fallbackDriverText;
         final tnFallback = _order?['truck_number']?.toString().trim();
@@ -884,8 +874,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
     }
   }
 
-  static const LatLng _fallbackPickupPoint = LatLng(21.1702, 72.8311);
-  static const LatLng _fallbackDropPoint = LatLng(26.9124, 75.7873);
 
   Future<void> _loadTimeline() async {
     final requestId = ++_timelineRequestId;
