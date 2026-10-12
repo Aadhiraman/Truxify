@@ -438,7 +438,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       final langCode = _langCodeForName(selectedLang);
                       languageProvider.changeLocale(langCode);
                       await controller.setLocale(langCode);
-                      if (mounted) {
+                      if (context.mounted) {
                         setState(() {
                           _currentLanguage = selectedLang;
                         });

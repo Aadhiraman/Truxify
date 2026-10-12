@@ -163,6 +163,7 @@ class _ProofOfDeliveryScreenState extends State<ProofOfDeliveryScreen> {
         // If geofence failed, request manual OTP
         if (!paymentReleased) {
           _updateStatus('Awaiting OTP verification...');
+          if (!mounted) return;
           final enteredOtp = await showDialog<String>(
             context: context,
             barrierDismissible: false,
