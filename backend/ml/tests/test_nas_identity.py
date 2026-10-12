@@ -93,7 +93,8 @@ def test_random_search_shared_sampler_and_fresh_history():
 def test_budget_preflight_preserves_previous_state_and_rng(value):
     searcher = NASSearcher(NASSearchSpace())
     searcher.random_search(1, score)
-    state = deepcopy(searcher.__dict__)
+    # Native locks are process-local capabilities, not copied serving state.
+    state = searcher.snapshot_history()
     rng = random.getstate()
     for call in [lambda: searcher.random_search(value),
                  lambda: searcher.evolutionary_search(value, 1),
@@ -101,7 +102,8 @@ def test_budget_preflight_preserves_previous_state_and_rng(value):
         with pytest.raises(ValueError):
             call()
         assert searcher.best_architecture == state['best_architecture']
-        assert searcher.search_history == state['search_history']
+        assert searcher.search_history == state['history']
+        assert searcher.best_performance == state['best_performance']
         assert random.getstate() == rng
 
 

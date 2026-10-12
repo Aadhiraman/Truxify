@@ -1,6 +1,7 @@
 import logging
 import math
 import random
+import threading
 from copy import deepcopy
 from numbers import Integral
 from typing import Dict, List, Tuple
@@ -226,6 +227,8 @@ class NASSearcher:
     
     def __init__(self, search_space: NASSearchSpace):
         self.search_space = search_space
+        self._lifecycle_lock = threading.RLock()
+        self._state_lock = threading.Lock()
         self.search_history = []
         self.best_architecture = None
         self.best_performance = 0.0
@@ -233,18 +236,36 @@ class NASSearcher:
         logger.info("✅ NAS Searcher initialized")
     
     def _publish(self, best_arch, best_score, history, method):
-        # Publish only a completed run; every outward view has separate ownership.
-        self.best_architecture = deepcopy(best_arch)
-        self.best_performance = best_score
-        self.search_history = deepcopy(history)
-        return {
+        # Prepare owned state before the short atomic publication boundary.
+        owned_arch, owned_history = deepcopy(best_arch), deepcopy(history)
+        result = {
             'best_architecture': deepcopy(best_arch),
             'best_score': best_score,
             'history': deepcopy(history),
             'method': method,
         }
+        with self._state_lock:
+            self.best_architecture = owned_arch
+            self.best_performance = best_score
+            self.search_history = owned_history
+        return result
+
+    def snapshot_history(self) -> Dict:
+        """Return one independently owned completed generation promptly."""
+        with self._state_lock:
+            return {
+                'history': deepcopy(self.search_history[-20:]),
+                'total_trials': len(self.search_history),
+                'best_architecture': deepcopy(self.best_architecture),
+                'best_performance': self.best_performance,
+            }
 
     def reinforcement_search(self, num_trials=20, evaluator=None):
+        """Run one native cycle; cancelled waiters cannot retire ownership."""
+        with self._lifecycle_lock:
+            return self._reinforcement_search_candidate(num_trials, evaluator)
+
+    def _reinforcement_search_candidate(self, num_trials=20, evaluator=None):
         """Learn from explicit evaluated scores; no synthetic RL accuracy claims."""
         num_trials = _positive_budget(num_trials, 'num_trials')
         if num_trials > 128 or not callable(evaluator):
@@ -268,6 +289,11 @@ class NASSearcher:
         return result
 
     def random_search(self, num_trials: int = 100, evaluator=None) -> Dict:
+        """Run one native cycle; cancelled waiters cannot retire ownership."""
+        with self._lifecycle_lock:
+            return self._random_search_candidate(num_trials, evaluator)
+
+    def _random_search_candidate(self, num_trials: int = 100, evaluator=None) -> Dict:
         """Evaluate independent candidates and publish exact score provenance."""
         num_trials = _positive_budget(num_trials, 'num_trials')
         history, best_arch, best_score = [], None, -float('inf')
@@ -280,6 +306,11 @@ class NASSearcher:
         return self._publish(best_arch, best_score, history, 'random')
 
     def evolutionary_search(self, population_size: int = 20, generations: int = 10, evaluator=None) -> Dict:
+        """Run one native cycle; cancelled waiters cannot retire ownership."""
+        with self._lifecycle_lock:
+            return self._evolutionary_search_candidate(population_size, generations, evaluator)
+
+    def _evolutionary_search_candidate(self, population_size: int = 20, generations: int = 10, evaluator=None) -> Dict:
         """Select scored genotypes without aliasing parents, evaluators or winners."""
         population_size = _positive_budget(population_size, 'population_size')
         generations = _positive_budget(generations, 'generations')
