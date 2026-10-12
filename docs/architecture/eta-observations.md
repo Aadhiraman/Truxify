@@ -38,7 +38,7 @@ route-history/worker consumers. No production database/provider/vehicle is used.
 See `.github/workflows/eta-observations.yml` for the pinned Linux command.
 
 The unchanged upstream formula expectation in
-`test_update_eta_uses_bounded_inference_executor` fails (20.02002 vs1000),
+`test_update_eta_uses_bounded_inference_executor` fails (20.02002 vs 1000),
 already covered by assigned #17566/open #17567. It is explicitly deselected from
 this focused gate; provider/formula changes are not included here. All other
 selected existing worker/window/identity consumers and the actual mounted native
