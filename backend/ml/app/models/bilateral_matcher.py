@@ -197,8 +197,14 @@ def _validate_finite_value(
 def _validate_bilateral_inputs(
     loads: List[Dict[str, Any]],
     drivers: List[Dict[str, Any]],
-) -> None:
-    """Validate direct matcher inputs before building the optimization matrix."""
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Own and normalize the problem before routing or scoring can wait.
+
+    Capture is not atomic against unsynchronized caller writes. After it,
+    only private records and immutable admitted floats are used.
+    """
+    loads = [dict(load) for load in tuple(loads)]
+    drivers = [dict(driver) for driver in tuple(drivers)]
     load_ranges = {
         "origin_lat": (-90.0, 90.0),
         "origin_lng": (-180.0, 180.0),
@@ -225,14 +231,14 @@ def _validate_bilateral_inputs(
 
     for load_index, load in enumerate(loads):
         for field_name, (minimum, maximum) in load_ranges.items():
-            _validate_finite_value(
+            load[field_name] = _validate_finite_value(
                 load.get(field_name),
                 f"loads[{load_index}].{field_name}",
                 minimum=minimum,
                 maximum=maximum,
             )
         for field_name in load_positive_fields:
-            _validate_finite_value(
+            load[field_name] = _validate_finite_value(
                 load.get(field_name),
                 f"loads[{load_index}].{field_name}",
                 positive=True,
@@ -240,20 +246,20 @@ def _validate_bilateral_inputs(
 
     for driver_index, driver in enumerate(drivers):
         for field_name, (minimum, maximum) in driver_ranges.items():
-            _validate_finite_value(
+            driver[field_name] = _validate_finite_value(
                 driver.get(field_name),
                 f"drivers[{driver_index}].{field_name}",
                 minimum=minimum,
                 maximum=maximum,
             )
         for field_name in driver_positive_fields:
-            _validate_finite_value(
+            driver[field_name] = _validate_finite_value(
                 driver.get(field_name),
                 f"drivers[{driver_index}].{field_name}",
                 positive=True,
             )
 
-        _validate_finite_value(
+        driver["rating"] = _validate_finite_value(
             driver.get("rating", 3.0),
             f"drivers[{driver_index}].rating",
             minimum=1.0,
@@ -266,12 +272,14 @@ def _validate_bilateral_inputs(
         }.items():
             value = driver.get(field_name)
             if value is not None:
-                _validate_finite_value(
+                driver[field_name] = _validate_finite_value(
                     value,
                     f"drivers[{driver_index}].{field_name}",
                     minimum=minimum,
                     maximum=maximum,
                 )
+
+    return loads, drivers
 
 
 def _distance_cost(driver: dict, load: dict) -> float:
@@ -404,7 +412,7 @@ def match_bilateral(
         ``unmatched_loads``  – indices of loads without a match
         ``unmatched_drivers`` – indices of drivers without a match
     """
-    _validate_bilateral_inputs(loads, drivers)
+    loads, drivers = _validate_bilateral_inputs(loads, drivers)
 
     n_loads = len(loads)
     n_drivers = len(drivers)
