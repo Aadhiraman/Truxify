@@ -673,13 +673,20 @@ router.post(
 
 router.post('/initialize', authenticate, requirePolicy('payment:write'), async (req, res) => {
   try {
+    if (!req.body || typeof req.body !== 'object') {
+      // Without a parsed body the destructuring below throws and the catch
+      // would report a 500 for what is a client 400.
+      return res.status(400).json({ error: 'Request body is required.' });
+    }
     const { amount, expected_amount, currency, order_id } = req.body;
 
     // Determine the amount field to validate (supports both 'amount' and 'expected_amount')
     const targetAmount = amount !== undefined ? amount : expected_amount;
 
-    // Defense-in-depth validation guard for negative or zero payment amounts
-    if (targetAmount === undefined || targetAmount === null || typeof targetAmount !== 'number' || targetAmount <= 0) {
+    // Defense-in-depth validation guard for negative, zero, or non-finite
+    // payment amounts (JSON 1e999 arrives as Infinity, passes <= 0, and
+    // serializes as null downstream).
+    if (targetAmount === undefined || targetAmount === null || typeof targetAmount !== 'number' || !Number.isFinite(targetAmount) || targetAmount <= 0) {
       logger.warn(
         {
           requestId: req.requestId || req.id,
