@@ -27,7 +27,8 @@ import tempfile
 import logging
 from math import isfinite
 from functools import partial
-from collections import deque, OrderedDict
+from collections import OrderedDict
+from ._eta_observations import observation_lock, prepare_window, finite_prediction
 from app.execution import is_training_cancelled, TrainingCancelled
 from services.recovery_circuit import RecoveryCircuit
 
@@ -109,7 +110,8 @@ class TrafficPipeline:
 
     def get_route_history_metrics(self) -> Dict[str, Optional[str]]:
         """Return the route identity used for the most recent prediction."""
-        return dict(self._last_route_history_metrics)
+        with observation_lock(self):
+            return dict(self._last_route_history_metrics)
 
     def close(self):
         """Dispose DB connection pool and close Redis connection.
@@ -414,53 +416,40 @@ class TrafficPipeline:
         route_signature: Optional[str] = None,
     ) -> float:
         """Predict ETA using an order-specific rolling history."""
-        try:
-            model = self.model
-            if model is None:
-                logger.warning("ETA prediction unavailable because TensorFlow model is not loaded")
-                return None
-            if route_data.ndim == 1:
-                route_data = route_data.reshape(1, -1)
-            if route_data.shape[1] != 5:
-                logger.error(f"Prediction failed: expected 5 features, got {route_data.shape[1]}")
-                return None
-
-            base_route_key = route_id or ""
-            route_key = (
-                f"{base_route_key}:{route_signature}"
-                if route_signature
-                else base_route_key
-            )
-            self._last_route_history_metrics = {
-                'route_id': base_route_key or None,
-                'route_signature': route_signature,
-                'route_key': route_key,
-            }
-
-            window = self._route_windows.get(route_key)
-            if window is None:
-                if len(self._route_windows) >= self._max_route_windows:
+        with observation_lock(self):
+            try:
+                model = self.model
+                if model is None:
+                    logger.warning("ETA prediction unavailable because TensorFlow model is not loaded")
+                    return None
+                base_route_key = route_id or ""
+                route_key = (
+                    f"{base_route_key}:{route_signature}"
+                    if route_signature
+                    else base_route_key
+                )
+                window, model_input = prepare_window(
+                    route_data, self._route_windows.get(route_key)
+                )
+                metrics = {
+                    'route_id': base_route_key or None,
+                    'route_signature': route_signature,
+                    'route_key': route_key,
+                }
+                prediction = finite_prediction(model.predict(model_input, verbose=0))
+                # A failed inference never admits a row, evicts another route or
+                # changes metrics. All outward preparation precedes this commit.
+                if (route_key not in self._route_windows
+                        and len(self._route_windows) >= self._max_route_windows):
                     self._route_windows.popitem(last=False)
-                window = deque(maxlen=60)
                 self._route_windows[route_key] = window
-            else:
                 self._route_windows.move_to_end(route_key)
+                self._last_route_history_metrics = metrics
+                return prediction
+            except Exception as e:
+                logger.error(f"Prediction failed: {e}")
+                return None
 
-            window.append(route_data[0])
-
-            seq = list(window)
-            if len(seq) < 60:
-                # Cold start: pad the front with the earliest observation so
-                # the model still receives a 60-step input.
-                seq = [seq[0]] * (60 - len(seq)) + seq
-
-            model_input = np.array(seq).reshape(1, 60, 5)
-            prediction = model.predict(model_input, verbose=0)
-            return float(prediction[0][0])
-        except Exception as e:
-            logger.error(f"Prediction failed: {e}")
-            return None
-    
     def train_model(self, epochs=50, batch_size=32):
         """Train LSTM model on historical data"""
         if self.model is None:
