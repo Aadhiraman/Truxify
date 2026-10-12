@@ -13,6 +13,7 @@ import '../theme/app_theme.dart';
 import '../widgets/common_widgets.dart';
 import '../core/api_client.dart';
 import '../utils/upi_link_validator.dart';
+import '../widgets/net_profit_breakdown_card.dart';
 
 /// Payment pipeline:
 ///   1. createOrder()  → orderId returned
@@ -453,6 +454,28 @@ final orderId = _createdOrderId ?? await _orderService.createOrder(
               ],
             ),
           ),
+          if (widget.truck.profitBreakdown != null) ...[
+            const SizedBox(height: 16),
+            InfoCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Estimated net profit',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 12),
+                  NetProfitBreakdownCard(
+                    breakdown: widget.truck.profitBreakdown!,
+                    initiallyExpanded: true,
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           InfoCard(
             child: Column(
