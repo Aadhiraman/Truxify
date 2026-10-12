@@ -93,7 +93,7 @@ class DesktopChatLayout extends StatelessWidget {
           // Right Pane: Active Message Stream & Input with Drag-and-Drop
           Expanded(
             child: DragTarget<List<dynamic>>(
-              onAccept: (files) => onFilesDropped(files),
+              onAcceptWithDetails: (details) => onFilesDropped(details.data),
               builder: (context, candidateData, rejectedData) {
                 return Column(
                   children: [
@@ -148,7 +148,7 @@ class DesktopChatLayout extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: isMe
                                     ? theme.primaryColor
-                                    : theme.colorScheme.surfaceVariant,
+                                    : theme.colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(

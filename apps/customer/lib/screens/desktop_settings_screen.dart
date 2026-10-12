@@ -86,7 +86,7 @@ class _DesktopSettingsScreenState extends State<DesktopSettingsScreen> {
           // Right Content Area
           Expanded(
             child: Container(
-              color: theme.colorScheme.background,
+              color: theme.colorScheme.surface,
               child: Padding(
                 padding: const EdgeInsets.all(32.0),
                 child: _buildSelectedTabContent(),
@@ -1145,7 +1145,7 @@ class _DesktopSettingsScreenState extends State<DesktopSettingsScreen> {
                 title: 'Language',
                 children: [
                   DropdownButtonFormField<String>(
-                    value: 'English',
+                    initialValue: 'English',
                     decoration: const InputDecoration(
                       labelText: 'App Language',
                       border: OutlineInputBorder(),

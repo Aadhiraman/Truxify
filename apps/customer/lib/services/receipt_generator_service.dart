@@ -124,7 +124,7 @@ class ReceiptGeneratorService {
                       fontSize: 12,
                       color: pw_pdf.PdfColors.blue800)),
               pw.SizedBox(height: 8),
-              pw.Table.fromTextArray(
+              pw.TableHelper.fromTextArray(
                 headerStyle: pw.TextStyle(
                     fontWeight: pw.FontWeight.bold,
                     color: pw_pdf.PdfColors.white,
