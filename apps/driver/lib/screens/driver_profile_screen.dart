@@ -365,7 +365,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                   children: [
                     CircleAvatar(
                       radius: 36,
-                      backgroundColor: TruxifyColors.accent.withValues(alpha: 0.1),
+                      backgroundColor: TruxifyColors.accent.withOpacity(0.1),
                       child: const Icon(
                         Icons.person,
                         size: 36,

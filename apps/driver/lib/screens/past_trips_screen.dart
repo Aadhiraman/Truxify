@@ -4,8 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:truxify_shared/truxify_shared.dart';
 
-import '../core/config.dart';
-import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../services/trip_service.dart';
 

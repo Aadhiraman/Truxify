@@ -3,8 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:truxify_driver/controllers/app_controller.dart';
 import 'package:truxify_driver/screens/driver_profile_screen.dart';
 import 'package:truxify_driver/widgets/common_widgets.dart';
@@ -258,16 +256,16 @@ void main() {
     // Bottom sheet is visible
     expect(find.text('Edit Truck Details'), findsOneWidget);
 
-    // Form fields are prepopulated
+    // Form fields are prepopulated. The Capacity/Volume/Registration input
+    // fields were deliberately removed by #17798 — only Truck Type remains
+    // editable in the sheet.
     expect(find.widgetWithText(TextFormField, 'Tata Ultra'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, '12.5'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, '38.0'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, 'MH12AB1234'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, '12.5'), findsNothing);
+    expect(find.widgetWithText(TextFormField, '38.0'), findsNothing);
+    expect(find.widgetWithText(TextFormField, 'MH12AB1234'), findsNothing);
 
-    // Modify Type and Capacity
+    // Modify Type
     await tester.enterText(find.widgetWithText(TextFormField, 'Tata Ultra'), 'Tata Ultra Pro');
-    await tester.enterText(find.widgetWithText(TextFormField, '12.5'), '15.0');
-    await tester.enterText(find.widgetWithText(TextFormField, '38.0'), '45.0');
     await tester.pumpAndSettle();
 
     // Save changes

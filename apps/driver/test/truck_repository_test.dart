@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:truxify_driver/models/truck_models.dart';
 import 'package:truxify_driver/services/truck_repository.dart';
 
 class MockGoTrueClient implements GoTrueClient {

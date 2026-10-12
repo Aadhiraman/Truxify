@@ -8,7 +8,6 @@ import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:truxify_driver/services/sync_service.dart';
 import 'package:truxify_driver/services/api_client.dart';
-import 'package:truxify_driver/services/local_db_service.dart';
 import 'package:truxify_driver/services/trip_service.dart';
 import 'setup.dart';
 
