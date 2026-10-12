@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/parking_probability_model.dart';
 import '../services/parking_probability_service.dart';
 
