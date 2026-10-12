@@ -98,7 +98,7 @@ class _WeightCalculatorScreenState extends State<WeightCalculatorScreen> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isOver ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+        color: isOver ? Colors.red.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
         border: Border.all(color: isOver ? Colors.red : Colors.green),
         borderRadius: BorderRadius.circular(8),
       ),

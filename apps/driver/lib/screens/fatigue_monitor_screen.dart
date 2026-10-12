@@ -37,7 +37,7 @@ class _FatigueMonitorScreenState extends State<FatigueMonitorScreen> {
   void _triggerAlarm() {
     showDialog(
       context: context,
-      barrierColor: Colors.red.withOpacity(0.8),
+      barrierColor: Colors.red.withValues(alpha: 0.8),
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
@@ -158,7 +158,7 @@ class _FatigueMonitorScreenState extends State<FatigueMonitorScreen> {
   Widget _buildStatusHeader(Color color) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: color, width: 2)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: color, width: 2)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

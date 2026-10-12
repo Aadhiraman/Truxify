@@ -116,7 +116,7 @@ class _ParkingProbabilityScreenState extends State<ParkingProbabilityScreen> {
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
-        side: BorderSide(color: statusColor.withOpacity(0.5), width: 2),
+        side: BorderSide(color: statusColor.withValues(alpha: 0.5), width: 2),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Padding(
@@ -155,7 +155,7 @@ class _ParkingProbabilityScreenState extends State<ParkingProbabilityScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
               child: Text(
                 'STATUS: ${stop.status.toUpperCase()}',
                 textAlign: TextAlign.center,

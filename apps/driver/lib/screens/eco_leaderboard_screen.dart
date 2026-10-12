@@ -131,7 +131,7 @@ class _EcoLeaderboardScreenState extends State<EcoLeaderboardScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: rankColor.withOpacity(0.2),
+                color: rankColor.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
                 border: Border.all(color: rankColor, width: 2),
               ),

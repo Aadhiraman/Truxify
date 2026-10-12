@@ -169,7 +169,7 @@ class _VoiceAssistantSheetState extends State<VoiceAssistantSheet> {
                 color: _isRecording ? Colors.red : Colors.blue,
                 shape: BoxShape.circle,
                 boxShadow: _isRecording
-                    ? [BoxShadow(color: Colors.red.withOpacity(0.5), blurRadius: 20, spreadRadius: 5)]
+                    ? [BoxShadow(color: Colors.red.withValues(alpha: 0.5), blurRadius: 20, spreadRadius: 5)]
                     : [],
               ),
               child: _isLoading

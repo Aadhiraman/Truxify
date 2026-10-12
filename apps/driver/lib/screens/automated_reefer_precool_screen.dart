@@ -120,7 +120,7 @@ class _AutomatedReeferPrecoolScreenState extends State<AutomatedReeferPrecoolScr
         shape: BoxShape.circle,
         color: Colors.black,
         border: Border.all(color: tempColor, width: 4),
-        boxShadow: [BoxShadow(color: tempColor.withOpacity(0.3), blurRadius: 30, spreadRadius: 10)],
+        boxShadow: [BoxShadow(color: tempColor.withValues(alpha: 0.3), blurRadius: 30, spreadRadius: 10)],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

@@ -59,7 +59,7 @@ class _NightVisionScreenState extends State<NightVisionScreen> {
           backgroundColor: isNight ? Colors.black : Colors.blueGrey[900],
           foregroundColor: isNight ? Colors.redAccent[700] : Colors.white,
           elevation: isNight ? 0 : 4,
-          shadowColor: isNight ? Colors.redAccent.withOpacity(0.2) : Colors.black,
+          shadowColor: isNight ? Colors.redAccent.withValues(alpha: 0.2) : Colors.black,
         ),
       ),
       child: Scaffold(

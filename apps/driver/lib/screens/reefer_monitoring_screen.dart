@@ -39,7 +39,7 @@ class _ReeferMonitoringScreenState extends State<ReeferMonitoringScreen> {
   void _triggerPredictionAlert(ReeferZone zone) {
     showDialog(
       context: context,
-      barrierColor: Colors.orange.withOpacity(0.8),
+      barrierColor: Colors.orange.withValues(alpha: 0.8),
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
