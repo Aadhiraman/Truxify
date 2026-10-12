@@ -84,6 +84,9 @@ def detector(tmp_path, monkeypatch, store):
     service._generation_lock = threading.RLock()
     service._training_lock = threading.RLock()
     service._generations = {"driver_behavior": 4}
+    service._delivery_lock = threading.RLock()
+    service._observation_sequence = 0
+    service._pending_delivery = deque()
     model = LSTMAutoencoder(2, 3, 2)
     model.build_model()
     scaler = StandardScaler().fit(observations().reshape(-1, 2))
@@ -348,7 +351,9 @@ def test_actual_native_window_scoring_and_strict_redis_serialization(detector):
     )
     assert type(result["is_anomaly"]) is bool and result["generation"] == 4
     stored = json.loads(detector.redis.get("anomaly:latest:driver_behavior"))
-    assert stored == result and result["is_anomaly"]
+    # Cached native observation cannot claim the outcome of later bus delivery.
+    assert stored == {key: value for key, value in result.items() if key != "alert_delivery"}
+    assert result["is_anomaly"] and result["alert_delivery"] == "published"
     assert len(detector._feature_buffers[("driver_behavior", "driver")]) == 2
 
 
