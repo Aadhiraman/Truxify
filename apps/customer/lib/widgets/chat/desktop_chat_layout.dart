@@ -62,7 +62,7 @@ class DesktopChatLayout extends StatelessWidget {
 
                       return ListTile(
                         selected: isSelected,
-                        selectedTileColor: theme.primaryColor.withOpacity(0.1),
+                        selectedTileColor: theme.primaryColor.withValues(alpha: 0.1),
                         leading: CircleAvatar(
                           backgroundImage: chat['avatar'] != null
                               ? NetworkImage(chat['avatar'])
