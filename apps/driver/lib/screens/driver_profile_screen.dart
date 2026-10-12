@@ -445,7 +445,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                     Switch.adaptive(
                       value: _isOnline,
                       onChanged: _toggleOnlineStatus,
-                      activeColor: TruxifyColors.success,
+                      activeThumbColor: TruxifyColors.success,
                     ),
                   ],
                 ),
@@ -662,7 +662,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                       ),
                       value: scaleProvider.isLargeText,
                       onChanged: (val) => scaleProvider.toggleScale(val),
-                      activeColor: TruxifyColors.accent,
+                      activeThumbColor: TruxifyColors.accent,
                     );
                   },
                 ),

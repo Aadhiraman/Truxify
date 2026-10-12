@@ -150,7 +150,7 @@ class _EngineBrakeScreenState extends State<EngineBrakeScreen> {
                 Switch(
                   value: isActive,
                   onChanged: null, // Disabled because AI controls it
-                  activeColor: Colors.green,
+                  activeThumbColor: Colors.green,
                 ),
               ],
             ),

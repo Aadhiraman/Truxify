@@ -69,7 +69,7 @@ class _NightVisionScreenState extends State<NightVisionScreen> {
             Switch(
               value: isNight,
               onChanged: _service.toggleNightVision,
-              activeColor: Colors.red,
+              activeThumbColor: Colors.red,
               activeTrackColor: Colors.red[900],
             ),
             const SizedBox(width: 16),
