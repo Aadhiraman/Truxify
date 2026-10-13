@@ -11,6 +11,8 @@ import soundfile as sf
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from multimodal.audio_monitor import AudioMonitor
 from multimodal.vision_monitor import VisionMonitor
+from multimodal.vision_execution import process_encoded_frame, read_latest_vision
+from app.execution import run_inference
 from routes.safety_fusion_routes import router as fusion_router
 from routes.safety_fusion_routes import sensor_fusion
 
@@ -81,11 +83,7 @@ async def analyze_vision_frame(file: UploadFile = File(...)):
     try:
         # Read image (bounded, MIME-checked)
         contents = await _read_upload(file, _ALLOWED_VISION_MIME)
-        nparr = np.frombuffer(contents, np.uint8)
-        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
-        # Process frame
-        result = vision_monitor.process_frame(frame)
+        result = await run_inference(process_encoded_frame, vision_monitor, contents)
         
         return {
             'success': True,
@@ -149,11 +147,11 @@ async def record_audio(duration: int = 2):
 async def get_vision_status():
     """Get latest vision monitoring status"""
     try:
-        data = vision_monitor.redis.get('vision:latest')
-        if data:
+        has_data, data = await run_inference(read_latest_vision, vision_monitor)
+        if has_data:
             return {
                 'success': True,
-                'data': json.loads(data),
+                'data': data,
                 'timestamp': datetime.now().isoformat()
             }
         return {
@@ -161,6 +159,8 @@ async def get_vision_status():
             'data': None,
             'message': 'No vision data available'
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Vision status failed: {e}")
         logger.error(f"Internal error: {e}")
