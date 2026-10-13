@@ -31,15 +31,34 @@ from multimodal.vision_execution import (
 )
 from starlette.datastructures import Headers
 
-# This detector/predictor is unused by process_frame; native FaceMesh remains real.
-if importlib.util.find_spec("dlib") is None:
-    optional = types.ModuleType("dlib")
-    optional.get_frontal_face_detector = lambda: None
-    def unavailable_predictor(path):
-        raise RuntimeError("unused dlib startup isolated")
-    optional.shape_predictor = unavailable_predictor
-    sys.modules["dlib"] = optional
-from multimodal.vision_monitor import VisionMonitor
+
+def native_monitor_class():
+    """Load unchanged monitor source with only unused dlib startup isolated."""
+    path = Path(__file__).parents[1] / "multimodal/vision_monitor.py"
+    spec = importlib.util.spec_from_file_location("native_vision_test_module", path)
+    native = importlib.util.module_from_spec(spec)
+    adapters = {}
+    if importlib.util.find_spec("dlib") is None:
+        optional = types.ModuleType("dlib")
+        optional.get_frontal_face_detector = lambda: None
+        def unavailable_predictor(path):
+            raise RuntimeError("unused dlib startup isolated")
+        optional.shape_predictor = unavailable_predictor
+        adapters["dlib"] = optional
+    # Restore only the optional entry; retain newly imported native runtime modules.
+    missing = object()
+    previous = sys.modules.get("dlib", missing)
+    if adapters:
+        sys.modules["dlib"] = adapters["dlib"]
+    try:
+        spec.loader.exec_module(native)
+    finally:
+        if adapters:
+            if previous is missing:
+                sys.modules.pop("dlib", None)
+            else:
+                sys.modules["dlib"] = previous
+    return native.VisionMonitor
 
 
 @pytest.fixture(scope="module")
@@ -60,7 +79,7 @@ def monitor():
                     time.sleep(.01)
             else:
                 pytest.fail("native Redis did not start")
-            instance = VisionMonitor("unix://" + socket)
+            instance = native_monitor_class()("unix://" + socket)
             try:
                 yield instance
             finally:
