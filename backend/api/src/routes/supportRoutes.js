@@ -105,7 +105,6 @@ import { createTicketSchema, updateTicketSchema, createTicketCommentSchema, para
 import { formatPaginationMeta } from '../utils/pagination.js';
 
 const router = express.Router();
-router.use(userLimiter);
 
 const adminDb = supabaseAdmin || supabase;
 // support_tickets / support_ticket_comments are authenticated/service-role
@@ -215,7 +214,7 @@ async function getNextAvailableAgent() {
 // ============================================================================
 // 1. LIST ACTIVE FAQS (PUBLIC)
 // ============================================================================
-router.get('/faqs', async (req, res) => {
+router.get('/faqs', userLimiter, async (req, res) => {
   const appType = normalizeRequiredText(req.query.app_type);
 
   try {
@@ -274,7 +273,7 @@ const CATEGORY_DESCRIPTIONS = {
   account: 'Login problems, account settings, and profile access.',
 };
 
-router.get('/categories', (_req, res) => {
+router.get('/categories', userLimiter, (_req, res) => {
   res.json({
     categories: VALID_CATEGORIES,
     labels: CATEGORY_LABELS,

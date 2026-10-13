@@ -11,7 +11,6 @@ import { queryAuditLogs, exportAuditLogsJSON } from '../services/auditService.js
 import { verifyLogBatch } from '../lib/logSigner.js';
 
 const router = express.Router();
-router.use(userLimiter);
 
 const auditQuerySchema = z.object({
   actor_id: z.string().uuid().optional(),
@@ -271,7 +270,7 @@ const SIGNING_SECRET = process.env.AUDIT_SIGNING_SECRET || 'truxify-audit-signin
  * GET /api/audit/logs
  * Queries audit logs with filtering and pagination.
  */
-router.get('/logs', authenticate, requireRole(['admin', 'compliance']), async (req, res) => {
+router.get('/logs', authenticate, userLimiter, requireRole(['admin', 'compliance']), async (req, res) => {
   try {
     const {
       userId,
@@ -312,7 +311,7 @@ router.get('/logs', authenticate, requireRole(['admin', 'compliance']), async (r
  * GET /api/audit/export
  * Exports audit logs to JSON file download.
  */
-router.get('/export', authenticate, requireRole(['admin', 'compliance']), async (req, res) => {
+router.get('/export', authenticate, userLimiter, requireRole(['admin', 'compliance']), async (req, res) => {
   try {
     const { startDate, endDate, eventType, userId } = req.query;
 
@@ -336,7 +335,7 @@ router.get('/export', authenticate, requireRole(['admin', 'compliance']), async 
  * POST /api/audit/verify
  * Verifies the HMAC signature of a batch of logs.
  */
-router.post('/verify', authenticate, requireRole(['admin', 'compliance']), async (req, res) => {
+router.post('/verify', authenticate, userLimiter, requireRole(['admin', 'compliance']), async (req, res) => {
   try {
     const { logs, signature } = req.body;
 
@@ -361,7 +360,7 @@ router.post('/verify', authenticate, requireRole(['admin', 'compliance']), async
  * GET /api/audit/stats
  * Returns aggregate statistics about audit events.
  */
-router.get('/stats', authenticate, requireRole(['admin', 'compliance']), async (req, res) => {
+router.get('/stats', authenticate, userLimiter, requireRole(['admin', 'compliance']), async (req, res) => {
   try {
     // Simple stats query - in production, use materialized views
     const { data, error } = await supabaseAdmin
