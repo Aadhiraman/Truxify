@@ -221,7 +221,11 @@ class VisionMonitor:
 
     @owned_frame_operation
     def process_frame(self, frame) -> Dict:
-        """Process single video frame"""
+        """Process direct caller input using private storage and the shared owner."""
+        return self._process_owned_frame(frame)
+
+    def _process_owned_frame(self, frame) -> Dict:
+        """Process private storage; caller must hold the shared frame owner."""
         try:
             if not valid_frame(frame):
                 raise ValueError('vision requires a bounded nonempty uint8 BGR frame')

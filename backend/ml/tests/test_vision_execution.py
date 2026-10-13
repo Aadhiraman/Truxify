@@ -308,3 +308,21 @@ def test_private_copy_failure_keeps_native_unknown_contract(monitor, monkeypatch
     assert report["status"] == "ERROR" and report["overall_status"] == "UNKNOWN"
     assert monitor.eye_closed_frames == 0
     assert monitor.process_frame(frame)["status"] == "NO_FACE_DETECTED"
+
+
+def test_encoded_native_frame_does_not_allocate_second_bgr_copy(monitor, monkeypatch):
+    from multimodal import vision_execution
+    contents = encoded()
+    copies = []
+    original = vision_execution.np.array
+    def traced_array(value, *args, **kwargs):
+        if isinstance(value, np.ndarray) and value.ndim == 3 and value.shape[2] == 3:
+            copies.append(value.shape)
+        return original(value, *args, **kwargs)
+    with monkeypatch.context() as scoped:
+        scoped.setattr(vision_execution.np, "array", traced_array)
+        report = process_encoded_frame(monitor, contents)
+        assert copies == []
+        assert report["status"] == "NO_FACE_DETECTED"
+        monitor.process_frame(np.zeros((64, 64, 3), np.uint8))
+        assert copies == [(64, 64, 3)]

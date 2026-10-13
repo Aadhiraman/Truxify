@@ -11,7 +11,8 @@ One lazily initialized reentrant owner belongs to each VisionMonitor. It covers
 encoded decode and the full graph/counter/report operation for direct and worker
 callers. Direct valid frames are copied into private complete storage; a caller
 changing its array shape after admission cannot change the monitor's retained
-view. Invalid frames retain the existing UNKNOWN/error/reset path. Counter
+view. Locally decoded frames already have private storage and enter the same
+processing body under the owner without a second BGR allocation. Invalid frames retain the existing UNKNOWN/error/reset path. Counter
 thresholds, native processing, upload limits, valid response fields, missing versus
 present JSON cache results (including null) and cache-failure behavior remain.
 
@@ -19,7 +20,7 @@ An admitted native job retains executor capacity until it exits, including after
 an HTTP waiter cancels/times out. Waiting for the same monitor owner can occupy
 bounded executor slots; no fair scheduling, fast cancellation of native work or
 cross-process coordination is claimed. Status reads share executor admission and
-may receive backpressure while frame jobs occupy capacity. Private copies add work
+may receive backpressure while frame jobs occupy capacity. Direct-caller private copies add work
 and one frame-sized allocation; this does not redesign codec allocation limits.
 Copying does not provide an atomic snapshot during unsynchronized external writes.
 This is per-monitor ordering; existing shared driver/stream identity, detector
@@ -37,7 +38,7 @@ is not used by process_frame. Full application/hardware startup is not claimed.
 Native tests retain existing synthetic OpenCV pose/fusion/executor controls and
 check frame ownership, actual graph wait and Redis pause responsiveness, explicit
 backpressure outcomes, cancellation capacity retention, upload admission, invalid
-frames and private-copy failure. No test deselections. Existing Keras/protobuf/
+frames, direct private-copy failure and absence of a redundant decoded BGR copy. No test deselections. Existing Keras/protobuf/
 Starlette deprecations and MediaPipe informational warnings remain explicit.
 
 On macOS, the graphics context required native test execution outside the file

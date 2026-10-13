@@ -49,7 +49,9 @@ def process_encoded_frame(monitor, contents):
         raise TypeError("Vision decoding requires admitted immutable bytes")
     with frame_owner(monitor):
         frame = cv2.imdecode(np.frombuffer(contents, np.uint8), cv2.IMREAD_COLOR)
-        return monitor.process_frame(frame)
+        # imdecode allocated this frame locally; no caller holds its storage.
+        # Retain the same owner without allocating a redundant BGR copy.
+        return monitor._process_owned_frame(frame)
 
 
 def read_latest_vision(monitor):

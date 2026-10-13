@@ -78,6 +78,7 @@ def actual_monitor_class():
         "_estimate_head_pose",
         "_unknown_frame",
         "process_frame",
+        "_process_owned_frame",
         "_determine_overall_status",
         "get_alert",
     }
