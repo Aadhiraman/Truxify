@@ -67,6 +67,59 @@ class RedisMock {
         return 0;
     }
 
+    async rpush(key, value) {
+        const list = this.store.get(key) || [];
+        list.push(value);
+        this.store.set(key, list);
+        return list.length;
+    }
+
+    async ltrim(key, start, stop) {
+        // Redis LTRIM keeps [start, stop] inclusive; negatives index from the end.
+        const list = this.store.get(key) || [];
+        const n = list.length;
+        const s = start < 0 ? Math.max(n + start, 0) : Math.min(start, n);
+        const e = stop < 0 ? n + stop : Math.min(stop, n - 1);
+        this.store.set(key, s > e ? [] : list.slice(s, e + 1));
+        return 'OK';
+    }
+
+    async llen(key) {
+        const list = this.store.get(key) || [];
+        return list.length;
+    }
+
+    async lrange(key, start, stop) {
+        const list = this.store.get(key) || [];
+        const n = list.length;
+        const s = start < 0 ? Math.max(n + start, 0) : Math.min(start, n);
+        const e = stop < 0 ? n + stop : Math.min(stop, n - 1);
+        return s > e ? [] : list.slice(s, e + 1);
+    }
+
+    async expire(key, seconds) {
+        if (!this.store.has(key)) return 0;
+        this.expirations.set(key, Date.now() + seconds * 1000);
+        return 1;
+    }
+
+    pipeline() {
+        // ioredis-style deferred pipeline: collect, then exec in order.
+        const ops = [];
+        const self = this;
+        const api = {
+            exec: async () => {
+                const results = [];
+                for (const [fn, args] of ops) results.push([null, await fn(...args)]);
+                return results;
+            },
+        };
+        for (const name of ['rpush', 'ltrim', 'expire', 'set', 'del']) {
+            api[name] = (...args) => { ops.push([self[name].bind(self), args]); return api; };
+        }
+        return api;
+    }
+
     clear() {
         this.store.clear();
         this.expirations.clear();
