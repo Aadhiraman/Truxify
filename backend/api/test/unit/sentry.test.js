@@ -153,7 +153,7 @@ describe("sentry — error filter and level", () => {
     try {
       const resetEvent = {
         exception: {
-          values: [{ value: "Connection reset", type: "SystemError" }]
+          values: [{ value: "Connection reset", type: "ECONNRESET" }]
         }
       };
       expect(beforeSend(resetEvent)).toBeNull();
