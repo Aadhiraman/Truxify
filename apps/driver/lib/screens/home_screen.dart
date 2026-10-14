@@ -45,7 +45,6 @@ import '../widgets/map_markers.dart';
 import '../widgets/slide_to_confirm_button.dart';
 import '../widgets/home/offline_banner.dart';
 import '../widgets/home/low_battery_banner.dart';
-import '../widgets/home/active_navigation_header.dart';
 import '../widgets/home/search_destination_card.dart';
 import '../widgets/home/new_load_notification_banner.dart';
 import '../widgets/home/driver_status_sheet.dart';

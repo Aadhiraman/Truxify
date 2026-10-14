@@ -8,7 +8,6 @@ import '../l10n/app_localizations.dart';
 import '../models/app_models.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_page_route.dart';
-import '../services/fcm_service.dart' hide FcmService;
 import '../services/weigh_station_service.dart';
 import 'home_screen.dart';
 import 'documents_screen.dart';
