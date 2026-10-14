@@ -690,7 +690,7 @@ export async function sendDeliveryOtpNotification(customerId, orderDisplayId, ot
         user_id: customerId,
         title,
         body,
-        notif_type: 'order_update',
+        notif_type: 'delivery_otp',
         metadata: { 
           order_display_id: orderDisplayId,
           otp: plaintextOtp 
