@@ -10,7 +10,6 @@
  * Run with: npx vitest run test/unit/services/voiceService.test.js
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock database config export with both supabase and supabaseAdmin to prevent module destructuring errors
 vi.mock('../../../src/config/db.js', () => {
