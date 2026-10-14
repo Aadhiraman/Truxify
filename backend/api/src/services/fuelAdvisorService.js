@@ -1,4 +1,5 @@
 import { DomainError } from './order/domainError.js';
+import { supabaseAdmin } from '../config/db.js';
 
 /**
  * Calculates fuel efficiency (e.g. km/L) from distance and fuel consumed.
