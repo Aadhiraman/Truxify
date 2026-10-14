@@ -87,17 +87,24 @@ export function parseDocumentText(text, docType) {
     const datePattern = /(\d{2}[\/\-]\d{2}[\/\-]\d{4}|\d{4}[\/\-]\d{2}[\/\-]\d{2})/g;
     const dates = text.match(datePattern) || [];
 
+    // The DOB is a date too — without excluding it, it lands in dates[0] and
+    // gets misassigned as valid_from (and shifts valid_until onto the issue
+    // date, marking current documents expired). Extract it first and exclude.
+    const dobPatternEarly = /(?:DOB|DATE OF BIRTH|D\.O\.B)[:\s]*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i;
+    const dobEarly = text.match(dobPatternEarly);
+    const validityDates = dobEarly ? dates.filter((d) => d !== dobEarly[1]) : dates;
+
     // Number patterns (alphanumeric sequences)
     const numberPattern = /\b[A-Z0-9]{6,20}\b/g;
     const numbers = text.match(numberPattern) || [];
 
-    // Assign dates based on document type
+    // Assign dates based on document type (DOB excluded above)
     if (docType === 'DL' || docType === 'RC' || docType === 'INSURANCE') {
-        if (dates.length >= 2) {
-            extracted.valid_from = dates[0];
-            extracted.valid_until = dates[1];
-        } else if (dates.length === 1) {
-            extracted.valid_until = dates[0];
+        if (validityDates.length >= 2) {
+            extracted.valid_from = validityDates[0];
+            extracted.valid_until = validityDates[1];
+        } else if (validityDates.length === 1) {
+            extracted.valid_until = validityDates[0];
         }
     }
 

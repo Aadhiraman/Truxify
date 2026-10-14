@@ -12,7 +12,7 @@ const DOCUMENT_RULES = {
     DL: {
         name: 'Driving License',
         numberRegex: /^[A-Z]{2}[0-9]{2}\s?[0-9]{11}$/, // e.g., MH0120110000001
-        requiredFields: ['name', 'dob', 'validity'],
+        requiredFields: ['name', 'dob', 'valid_until'],
         minOcrConfidence: 70
     },
     RC: {
