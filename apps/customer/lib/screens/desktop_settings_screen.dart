@@ -86,7 +86,7 @@ class _DesktopSettingsScreenState extends State<DesktopSettingsScreen> {
           // Right Content Area
           Expanded(
             child: Container(
-              color: theme.colorScheme.background,
+              color: theme.colorScheme.surface,
               child: Padding(
                 padding: const EdgeInsets.all(32.0),
                 child: _buildSelectedTabContent(),
@@ -112,7 +112,7 @@ class _DesktopSettingsScreenState extends State<DesktopSettingsScreen> {
         ),
       ),
       selected: isSelected,
-      selectedTileColor: theme.primaryColor.withOpacity(0.08),
+      selectedTileColor: theme.primaryColor.withValues(alpha: 0.08),
       onTap: () => setState(() => _selectedTabIndex = index),
     );
   }
@@ -442,7 +442,7 @@ class _DesktopSettingsScreenState extends State<DesktopSettingsScreen> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
         color: isSelected
-            ? Theme.of(context).colorScheme.primary.withOpacity(0.10)
+            ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.10)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
@@ -678,7 +678,7 @@ class _DesktopSettingsScreenState extends State<DesktopSettingsScreen> {
                     color: Theme.of(context)
                         .colorScheme
                         .primary
-                        .withOpacity(0.10),
+                        .withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
@@ -1145,7 +1145,7 @@ class _DesktopSettingsScreenState extends State<DesktopSettingsScreen> {
                 title: 'Language',
                 children: [
                   DropdownButtonFormField<String>(
-                    value: 'English',
+                    initialValue: 'English',
                     decoration: const InputDecoration(
                       labelText: 'App Language',
                       border: OutlineInputBorder(),

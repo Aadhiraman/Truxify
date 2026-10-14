@@ -799,7 +799,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
                 Text('This fee is charged for cancelling after assignment.', textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: TruxifyColors.adaptiveSecondaryText(context))),
                 const SizedBox(height: 18),
                 DropdownButtonFormField<String>(
-                  value: selectedReason,
+                  initialValue: selectedReason,
                   decoration: const InputDecoration(
                     labelText: 'Cancellation reason',
                     border: OutlineInputBorder(),
@@ -872,9 +872,11 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen>
       }
 
       if (!mounted) return;
-      await Share.share(
-        'Track your shipment on Truxify:\n$trackingUrl',
-        subject: 'Shipment Tracking - ${widget.orderId}',
+      await SharePlus.instance.share(
+        ShareParams(
+          text: 'Track your shipment on Truxify:\n$trackingUrl',
+          subject: 'Shipment Tracking - ${widget.orderId}',
+        ),
       );
     } catch (e) {
       if (!mounted) return;

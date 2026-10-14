@@ -24,11 +24,11 @@ class DesktopSidebar extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.cardColor,
         border: Border(
-          right: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+          right: BorderSide(color: theme.dividerColor.withValues(alpha: 0.1)),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(2, 0),
           ),
@@ -49,7 +49,7 @@ class DesktopSidebar extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: theme.primaryColor.withOpacity(0.1),
+                          color: theme.primaryColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(Icons.local_shipping, color: theme.primaryColor),
@@ -148,7 +148,7 @@ class DesktopSidebar extends StatelessWidget {
               horizontal: isCollapsed ? 16 : 16,
             ),
             decoration: BoxDecoration(
-              color: isSelected ? theme.primaryColor.withOpacity(0.1) : Colors.transparent,
+              color: isSelected ? theme.primaryColor.withValues(alpha: 0.1) : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(

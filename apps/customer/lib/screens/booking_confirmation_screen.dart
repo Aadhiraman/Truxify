@@ -465,7 +465,7 @@ final orderId = _createdOrderId ?? await _orderService.createOrder(
                         ?.copyWith(fontWeight: FontWeight.w800)),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<PaymentMethod>(
-                  value: _selectedPayment,
+                  initialValue: _selectedPayment,
                   decoration: InputDecoration(
                     labelText: 'Select payment method',
                     helperText: _isLoading
@@ -492,7 +492,7 @@ final orderId = _createdOrderId ?? await _orderService.createOrder(
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<SavedAddress>(
-                  value: _selectedAddress,
+                  initialValue: _selectedAddress,
                   decoration: InputDecoration(
                     labelText: 'Select saved address',
                     helperText: _isLoading
@@ -883,7 +883,7 @@ class _UpiPaymentMockDialogState extends State<_UpiPaymentMockDialog> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: _selectedApp,
+                    initialValue: _selectedApp,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
