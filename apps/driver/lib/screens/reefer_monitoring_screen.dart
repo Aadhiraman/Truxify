@@ -90,8 +90,9 @@ class _ReeferMonitoringScreenState extends State<ReeferMonitoringScreen> {
     final isCritical = zone.anomalyProbability > 0.90;
 
     Color headerColor = Colors.blue[800]!;
-    if (isCritical) headerColor = Colors.red[800]!;
-    else if (isWarning) headerColor = Colors.orange[800]!;
+    if (isCritical) {
+      headerColor = Colors.red[800]!;
+    } else if (isWarning) headerColor = Colors.orange[800]!;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),

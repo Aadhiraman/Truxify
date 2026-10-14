@@ -67,8 +67,12 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void dispose() {
     _cooldownTimer?.cancel();
-    for (final c in _controllers) c.dispose();
-    for (final n in _focusNodes) n.dispose();
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    for (final n in _focusNodes) {
+      n.dispose();
+    }
     super.dispose();
   }
 
@@ -116,7 +120,9 @@ class _OtpScreenState extends State<OtpScreen> {
             ),
           );
           // Clear existing OTP inputs so the user enters the new code.
-          for (final c in _controllers) c.clear();
+          for (final c in _controllers) {
+            c.clear();
+          }
           if (_focusNodes.isNotEmpty) {
             _focusNodes.first.requestFocus();
           }

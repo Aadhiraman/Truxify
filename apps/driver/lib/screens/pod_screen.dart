@@ -19,13 +19,13 @@ class ProofOfDeliveryScreen extends StatefulWidget {
   final Future<void> Function(String? photoPath, String? signaturePath)? onComplete;
 
   const ProofOfDeliveryScreen({
-    Key? key,
+    super.key,
     required this.tripDisplayId,
     required this.stopId,
     this.orderId,
     this.earnings,
     this.onComplete,
-  }) : super(key: key);
+  });
 
   @override
   State<ProofOfDeliveryScreen> createState() => _ProofOfDeliveryScreenState();

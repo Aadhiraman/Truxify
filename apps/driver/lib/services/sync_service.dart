@@ -10,8 +10,8 @@ typedef UploadProgressCallback = void Function(String status, {double? progress}
 
 class SyncService {
   static final SyncService instance = SyncService._init();
-  TripService _tripService;
-  ApiClient _apiClient;
+  final TripService _tripService;
+  final ApiClient _apiClient;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isSyncing = false;
 

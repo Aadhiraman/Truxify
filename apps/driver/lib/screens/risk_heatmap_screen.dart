@@ -149,7 +149,7 @@ class _RiskHeatmapScreenState extends State<RiskHeatmapScreen> {
                       Expanded(child: Text(incident, style: TextStyle(color: Colors.grey[800], fontSize: 13))),
                     ],
                   ),
-                )).toList()
+                ))
               ],
             ),
           )

@@ -165,7 +165,7 @@ class _RetentionDashboardScreenState extends State<RetentionDashboardScreen> {
                       Expanded(child: Text(factor, style: TextStyle(color: Colors.grey[800]))),
                     ],
                   ),
-                )).toList(),
+                )),
                 const Divider(height: 24),
                 Container(
                   width: double.infinity,

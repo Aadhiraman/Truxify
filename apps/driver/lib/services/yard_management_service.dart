@@ -8,7 +8,7 @@ class YardManagementService {
   Stream<YardManagementSession> get yardStream => _sessionController.stream;
 
   List<YardTrailer> _trailers = [];
-  List<YardInstruction> _instructions = [];
+  final List<YardInstruction> _instructions = [];
 
   void initializeYard() {
     _trailers = [

@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 class VoiceAssistantSheet extends StatefulWidget {
   final String backendUrl; // e.g., 'http://10.0.2.2:5000/api/v1/voice/assistant'
 
-  const VoiceAssistantSheet({Key? key, required this.backendUrl}) : super(key: key);
+  const VoiceAssistantSheet({super.key, required this.backendUrl});
 
   @override
   _VoiceAssistantSheetState createState() => _VoiceAssistantSheetState();
