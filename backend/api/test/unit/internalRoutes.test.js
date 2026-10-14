@@ -523,3 +523,24 @@ describe('POST /api/internal/defensive-pause', () => {
     expect(res.status).not.toBe(404);
   });
 });
+
+describe('GET /api/internal/training-readiness', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it.each(['not-a-date', '2026-13-45'])('rejects since=%s with 400 instead of a 500', async (since) => {
+    const res = await request(buildApp())
+      .get('/api/internal/training-readiness')
+      .query({ since });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'since must be a valid date.' });
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('rejects a repeated since parameter', async () => {
+    const res = await request(buildApp())
+      .get('/api/internal/training-readiness?since=2026-01-01&since=2026-02-01');
+
+    expect(res.status).toBe(400);
+  });
+});
