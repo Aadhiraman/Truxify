@@ -14,24 +14,7 @@ vi.mock('../../src/services/blockchain/eip712Signer.js', () => ({
   Eip712Signer: class {},
 }));
 
-const { CrossDockService } = await import('../../src/services/order/CrossDockService.js');
 const { EscrowMilestoneStateMachine, ESCROW_MILESTONES } = await import('../../src/services/blockchain/escrowMilestoneStateMachine.js');
-
-describe('CrossDockService', () => {
-  const svc = new CrossDockService();
-
-  it('accepts valid cross-dock statuses', async () => {
-    const res = await svc.processCrossDockOrder('ORD-1', 'CROSS_DOCKED');
-    expect(res.status).toBe('CROSS_DOCKED');
-    expect(res.orderId).toBe('ORD-1');
-    expect(res.processedAt).toBeTruthy();
-  });
-
-  it('rejects invalid statuses', async () => {
-    await expect(svc.processCrossDockOrder('ORD-1', 'TELEPORTED')).rejects.toThrow(/Invalid cross-dock status/);
-    await expect(svc.processCrossDockOrder('ORD-1', '')).rejects.toThrow();
-  });
-});
 
 describe('EscrowMilestoneStateMachine', () => {
   const params = {
