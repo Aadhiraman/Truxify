@@ -107,6 +107,14 @@ export class TokenBucketRateLimiter {
         return `anon:${crypto.createHash('sha256').update(`${ip}:${ua}`).digest('hex').substring(0, 16)}`;
     }
 
+    /** Stops the in-memory cleanup interval (tests, graceful shutdown). */
+    destroy() {
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+    }
+
     _cleanupInMemory() {
         const now = Date.now();
         for (const [key, bucket] of this.inMemoryBuckets.entries()) {
