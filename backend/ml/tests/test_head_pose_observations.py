@@ -21,6 +21,7 @@ import numpy as np
 import pytest
 import redis
 from multimodal.head_pose import estimate_head_pose
+from multimodal.vision_execution import owned_frame_operation, valid_frame
 from scipy.spatial import distance as dist
 
 
@@ -77,6 +78,7 @@ def actual_monitor_class():
         "_estimate_head_pose",
         "_unknown_frame",
         "process_frame",
+        "_process_owned_frame",
         "_determine_overall_status",
         "get_alert",
     }
@@ -93,6 +95,8 @@ def actual_monitor_class():
         "redis": redis,
         "dist": dist,
         "estimate_head_pose": estimate_head_pose,
+        "owned_frame_operation": owned_frame_operation,
+        "valid_frame": valid_frame,
     }
     exec(  # noqa: S102 - trusted selected repository methods
         compile(ast.Module(body=[original], type_ignores=[]), str(path), "exec"),

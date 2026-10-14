@@ -14,6 +14,7 @@ import base64
 from typing import Dict, List, Tuple, Any
 
 from multimodal.head_pose import estimate_head_pose
+from multimodal.vision_execution import owned_frame_operation, valid_frame
 
 logger = logging.getLogger(__name__)
 
@@ -218,12 +219,15 @@ class VisionMonitor:
             logger.warning('Unknown vision report could not be cached')
         return report
 
+    @owned_frame_operation
     def process_frame(self, frame) -> Dict:
-        """Process single video frame"""
+        """Process direct caller input using private storage and the shared owner."""
+        return self._process_owned_frame(frame)
+
+    def _process_owned_frame(self, frame) -> Dict:
+        """Process private storage; caller must hold the shared frame owner."""
         try:
-            if (not isinstance(frame, np.ndarray) or frame.dtype != np.uint8
-                    or frame.ndim != 3 or frame.shape[2] != 3
-                    or not 1 <= frame.shape[0] <= 8192 or not 1 <= frame.shape[1] <= 8192):
+            if not valid_frame(frame):
                 raise ValueError('vision requires a bounded nonempty uint8 BGR frame')
             # Convert to RGB
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
