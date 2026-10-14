@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:truxify_shared/truxify_shared.dart';
 
@@ -218,7 +217,6 @@ void main() {
         );
 
         NotificationTarget? receivedTarget;
-        String? receivedOrderId;
 
         await NotificationRouter.navigateFromItem(item, (target, data) async {
           receivedTarget = target;

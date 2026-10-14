@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'api_client.dart';
-import 'notification_router.dart';
 import '../models/notification_payload.dart';
 
 /// Callback invoked when a foreground message is received.
