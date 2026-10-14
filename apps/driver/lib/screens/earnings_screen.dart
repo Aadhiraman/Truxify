@@ -408,7 +408,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
       }
 
       final statement = EarningsStatementModel.fromJson(
-        json as Map<String, dynamic>,
+        json,
       );
 
       await _exportService.sharePdf(statement);
