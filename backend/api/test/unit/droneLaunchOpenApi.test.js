@@ -81,6 +81,14 @@ describe('Drone launch OpenAPI contract', () => {
         lng: expect.objectContaining({ type: 'number', minimum: -180, maximum: 180 }),
       }),
     });
+
+    // Generated clients compile the documented pattern; an unescaped `_-:`
+    // would be an out-of-order range and throw.
+    for (const field of ['trip_id', 'parcel_id']) {
+      const documented = new RegExp(schema.properties[field].pattern);
+      expect(documented.test('trip-1:a.b_c')).toBe(true);
+      expect(documented.test('trip 1')).toBe(false);
+    }
   });
 
   it('documents launch responses and the 25 km safety limit', () => {
