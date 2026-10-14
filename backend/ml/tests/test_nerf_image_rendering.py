@@ -175,3 +175,16 @@ def test_nonfinite_native_model_output_is_generic_internal_failure(mounted):
         assert response.json() == {'detail': 'Internal server error'}
     finally:
         with torch.no_grad(): route.model.density_head.bias.copy_(original)
+
+
+@pytest.mark.parametrize('path', ['spiral', 'orbital'])
+def test_camera_handoff_matches_native_model_precision(mounted, path):
+    client, route = mounted
+    previous = next(route.model.parameters()).dtype
+    try:
+        route.model.to(torch.float64)
+        response = client.post('/nerf/render/' + path, json={'num_poses': 1, 'image_size': [2, 2]})
+        assert response.status_code == 200, response.text
+        assert len(response.json()['data']['frames']) == 1
+    finally:
+        route.model.to(previous)

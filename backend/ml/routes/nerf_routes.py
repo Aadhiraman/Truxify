@@ -61,13 +61,14 @@ def render_spiral(request: RenderRequest):
             request.height
         )
         
-        # Render frames
+        # Render frames using the owned operation's native model representation.
+        parameter = next(renderer.model.parameters())
         frames = []
         for pose in poses:
             rays = pose.get_rays(60, tuple(request.image_size))
             rays_tensor = {
-                'origins': torch.tensor(rays['origins'], dtype=torch.float32),
-                'directions': torch.tensor(rays['directions'], dtype=torch.float32)
+                'origins': torch.tensor(rays['origins'], dtype=parameter.dtype, device=parameter.device),
+                'directions': torch.tensor(rays['directions'], dtype=parameter.dtype, device=parameter.device)
             }
             
             frame = renderer.render_image(rays_tensor, tuple(request.image_size), include_samples=False)
@@ -110,13 +111,13 @@ def render_orbital(request: RenderRequest):
     try:
         scene_policy(request.num_poses, request.image_size, renderer.num_samples)
         poses = create_orbital_poses(request.num_poses, request.radius)
-        
+        parameter = next(renderer.model.parameters())
         frames = []
         for pose in poses:
             rays = pose.get_rays(60, tuple(request.image_size))
             rays_tensor = {
-                'origins': torch.tensor(rays['origins'], dtype=torch.float32),
-                'directions': torch.tensor(rays['directions'], dtype=torch.float32)
+                'origins': torch.tensor(rays['origins'], dtype=parameter.dtype, device=parameter.device),
+                'directions': torch.tensor(rays['directions'], dtype=parameter.dtype, device=parameter.device)
             }
             
             frame = renderer.render_image(rays_tensor, tuple(request.image_size), include_samples=False)
