@@ -1092,7 +1092,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       value: scaleProvider.isLargeText,
                       onChanged: (val) => scaleProvider.toggleScale(val),
-                      activeColor: TruxifyColors.accent,
+                      activeThumbColor: TruxifyColors.accent,
                     );
                   },
                 ),

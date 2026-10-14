@@ -328,7 +328,7 @@ class _PastTripsScreenState extends State<PastTripsScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: TruxifyColors.accent.withOpacity(0.1),
+                            color: TruxifyColors.accent.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.history_rounded, size: 48, color: TruxifyColors.accent),
@@ -396,7 +396,7 @@ class _PastTripsScreenState extends State<PastTripsScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: TruxifyColors.accent.withOpacity(isDark ? 0.1 : 0.2),
+            color: TruxifyColors.accent.withValues(alpha: isDark ? 0.1 : 0.2),
             blurRadius: 15,
             offset: const Offset(0, 6),
           ),
@@ -459,7 +459,7 @@ class _PastTripsScreenState extends State<PastTripsScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.2),
+                            color: color.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: color, width: 1.5),
                           ),
@@ -706,7 +706,7 @@ class _PastTripsScreenState extends State<PastTripsScreen> {
           if (isExpanded) ...[
             Container(
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.02) : Colors.grey[50],
+                color: isDark ? Colors.white.withValues(alpha: 0.02) : Colors.grey[50],
                 borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
               ),
               padding: const EdgeInsets.all(16.0),
