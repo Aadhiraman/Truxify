@@ -1846,13 +1846,15 @@ router.get('/weigh-stations/bypass-status', authenticate, userLimiter, requireDr
 router.post('/weigh-stations/sync-weight', authenticate, requirePolicy('driver:view-stats'), userLimiter, validateBody(syncWeightSchema), async (req, res) => {
   try {
     const driverId = req.user.id;
-    const { truck_id, axles } = req.body;
+    // syncWeightSchema is .strict() — it strips everything but its declared
+    // keys, so the validated body carries vehicleId/truckId, never truck_id.
+    const { truckId, axles } = req.body;
 
     // Optional: verify the truck belongs to the driver
     const { data: truck, error: truckErr } = await getDriverUserClient(req)
       .from('trucks')
       .select('id')
-      .eq('id', truck_id)
+      .eq('id', truckId)
       .eq('driver_id', driverId)
       .single();
 
@@ -1860,7 +1862,7 @@ router.post('/weigh-stations/sync-weight', authenticate, requirePolicy('driver:v
       return res.status(403).json({ error: 'Forbidden: Truck does not belong to you or does not exist' });
     }
 
-    const status = await syncAndTransmitInternalWeights(driverId, truck_id, axles);
+    const status = await syncAndTransmitInternalWeights(driverId, truckId, axles);
     return res.status(200).json(status);
   } catch (err) {
     logger.error({ event: 'WEIGH_STATION_SYNC_WEIGHT_ERROR', requestId: req.requestId || req.id, driverId: req.user.id, error: err?.message ?? String(err) }, 'Error syncing internal weight');
@@ -2166,5 +2168,3 @@ router.get('/:driverId/trips', validateDriverId, authenticate, userLimiter, driv
 router.put('/:driverId', validateDriverId, authenticate, userLimiter, driverController.updateDriver);
 
 export default router;
-
-// Resolves #2051: Composite indexes added for 2dsphere queries
