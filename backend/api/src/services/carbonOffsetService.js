@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 const CARBON_RATE_PER_KG_KM = 0.00015;
 const OFFSET_PRICE_PER_TON = 15.0;
 
