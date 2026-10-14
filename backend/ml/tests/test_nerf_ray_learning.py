@@ -354,13 +354,9 @@ async def test_native_route_worker_retains_exclusive_access_without_blocking_loo
             release.set()
             assert (await asyncio.wait_for(first, 3)).status_code == 200
             response = await asyncio.wait_for(second, 3)
-            # Existing render routes supply flat camera rays to a renderer
-            # requiring a batch axis. That independent baseline failure is
-            # preserved; both routes must still serialize model access and
-            # release the operation lock on their generic error response.
-            assert response.status_code == (500 if operation in ('spiral', 'orbital') else 200)
-            if response.status_code == 500:
-                assert response.json()['detail'] == 'Internal server error'
+            # The image execution repair now admits the real flat camera handoff.
+            # Native exclusion and event-loop responsiveness assertions stay intact.
+            assert response.status_code == 200, response.text
             assert (await client.get('/nerf/model-info')).status_code == 200
     finally:
         release.set()
