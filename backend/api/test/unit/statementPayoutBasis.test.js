@@ -57,7 +57,7 @@ describe('statement payout basis', () => {
     const handler = route.stack.at(-1).handle;
     const res = { json: vi.fn(), status: vi.fn(), send: vi.fn(), setHeader: vi.fn() };
     res.status.mockReturnValue(res);
-    await handler({ user: { id: 'driver' }, query }, res);
+    await handler({ user: { id: 'driver' }, token: 'driver-token', query }, res);
     expect(res.status).not.toHaveBeenCalled();
     return res;
   }
