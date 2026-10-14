@@ -4,7 +4,13 @@ class RedisMock {
         this.expirations = new Map();
     }
 
-    async set(key, value, options) {
+    async set(key, value, ...rest) {
+        // Accept both node-redis ({ EX }) and ioredis ('EX', seconds) styles.
+        const options = rest[0] && typeof rest[0] === 'object' ? rest[0]
+          : rest[0] === 'EX' ? { EX: rest[1] }
+          : rest[0] === 'PX' ? { PX: rest[1] }
+          : rest[0] === 'NX' ? { NX: true }
+          : undefined;
         this.store.set(key, value);
         if (options && options.EX) {
             this.expirations.set(key, Date.now() + options.EX * 1000);
@@ -25,10 +31,22 @@ class RedisMock {
         return this.store.get(key) || null;
     }
 
-    async del(key) {
-        this.store.delete(key);
-        this.expirations.delete(key);
-        return 1;
+    async keys(pattern) {
+        // Minimal glob: only trailing-star prefixes are needed by the suites.
+        if (pattern.endsWith('*')) {
+            const prefix = pattern.slice(0, -1);
+            return [...this.store.keys()].filter((k) => k.startsWith(prefix));
+        }
+        return this.store.has(pattern) ? [pattern] : [];
+    }
+
+    async del(...keys) {
+        let n = 0;
+        for (const key of keys) {
+            if (this.store.delete(key)) n++;
+            this.expirations.delete(key);
+        }
+        return n;
     }
 
     async eval(luaScript, keys, args) {
