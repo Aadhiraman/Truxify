@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from nerf.ray_training import fit_rays
+from nerf.image_rendering import render_image, scene_policy
 
 logger = logging.getLogger(__name__)
 
@@ -208,26 +209,11 @@ class NeRFRenderer:
     def render_image(
         self,
         camera_rays: Dict,
-        image_size: Tuple[int, int] = (256, 256)
+        image_size: Tuple[int, int] = (256, 256),
+        *, include_samples: bool = True,
     ) -> Dict:
-        """Render full image"""
-        ray_origins = camera_rays['origins']
-        ray_directions = camera_rays['directions']
-        
-        # Render all rays
-        result = self.render_rays(ray_origins, ray_directions)
-        
-        # Reshape to image
-        h, w = image_size
-        rgb = result['rgb'].reshape(h, w, 3)
-        depth = result['depth'].reshape(h, w)
-        
-        return {
-            'rgb': rgb,
-            'depth': depth,
-            'weights': result['weights'].reshape(h, w, -1),
-            'alpha': result['alpha'].reshape(h, w, -1)
-        }
+        """Render one admitted image; retain legacy sample outputs by default."""
+        return render_image(self, camera_rays, image_size, include_samples=include_samples)
     
     def render_video(
         self,
@@ -235,6 +221,9 @@ class NeRFRenderer:
         image_size: Tuple[int, int] = (256, 256)
     ) -> List[Dict]:
         """Render video from camera poses"""
+        if not camera_poses:
+            return []
+        scene_policy(len(camera_poses), image_size, self.num_samples)
         frames = []
         for pose in camera_poses:
             frame = self.render_image(pose, image_size)

@@ -12,6 +12,7 @@ import torch
 import torch.nn.functional as F
 from fastapi import APIRouter, HTTPException
 from nerf.camera import create_orbital_poses, create_spiral_poses
+from nerf.image_rendering import ImageAdmissionError, scene_policy
 from nerf.model import NeRFNetwork, NeRFRenderer, NeRFTrainer
 from nerf.ray_training import RayAdmissionError, policy
 from PIL import Image
@@ -40,16 +41,19 @@ def serialized_native(function):
 
 
 class RenderRequest(BaseModel):
-    num_poses: int = 30
-    radius: float = 2.0
-    height: float = 1.0
-    image_size: List[int] = [256, 256]
+    num_poses: int = Field(default=30, strict=True)
+    radius: float = Field(default=2.0, gt=0, allow_inf_nan=False)
+    height: float = Field(default=1.0, allow_inf_nan=False)
+    image_size: List[Annotated[int, Field(strict=True)]] = Field(
+        default_factory=lambda: [256, 256], min_length=2, max_length=2
+    )
 
 @router.post("/render/spiral")
 @serialized_native
 def render_spiral(request: RenderRequest):
     """Render spiral video of scene"""
     try:
+        scene_policy(request.num_poses, request.image_size, renderer.num_samples)
         # Create spiral poses
         poses = create_spiral_poses(
             request.num_poses,
@@ -57,16 +61,17 @@ def render_spiral(request: RenderRequest):
             request.height
         )
         
-        # Render frames
+        # Render frames using the owned operation's native model representation.
+        parameter = next(renderer.model.parameters())
         frames = []
         for pose in poses:
             rays = pose.get_rays(60, tuple(request.image_size))
             rays_tensor = {
-                'origins': torch.tensor(rays['origins'], dtype=torch.float32),
-                'directions': torch.tensor(rays['directions'], dtype=torch.float32)
+                'origins': torch.tensor(rays['origins'], dtype=parameter.dtype, device=parameter.device),
+                'directions': torch.tensor(rays['directions'], dtype=parameter.dtype, device=parameter.device)
             }
             
-            frame = renderer.render_image(rays_tensor, tuple(request.image_size))
+            frame = renderer.render_image(rays_tensor, tuple(request.image_size), include_samples=False)
             
             # Convert to image
             rgb = frame['rgb'].cpu().numpy()
@@ -91,6 +96,8 @@ def render_spiral(request: RenderRequest):
             },
             'timestamp': datetime.now().isoformat()
         }
+    except ImageAdmissionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as e:
         logger.error(f"Spiral render failed: {e}")
         logger.error(f"Internal error: {e}")
@@ -102,17 +109,18 @@ def render_spiral(request: RenderRequest):
 def render_orbital(request: RenderRequest):
     """Render orbital video of scene"""
     try:
+        scene_policy(request.num_poses, request.image_size, renderer.num_samples)
         poses = create_orbital_poses(request.num_poses, request.radius)
-        
+        parameter = next(renderer.model.parameters())
         frames = []
         for pose in poses:
             rays = pose.get_rays(60, tuple(request.image_size))
             rays_tensor = {
-                'origins': torch.tensor(rays['origins'], dtype=torch.float32),
-                'directions': torch.tensor(rays['directions'], dtype=torch.float32)
+                'origins': torch.tensor(rays['origins'], dtype=parameter.dtype, device=parameter.device),
+                'directions': torch.tensor(rays['directions'], dtype=parameter.dtype, device=parameter.device)
             }
             
-            frame = renderer.render_image(rays_tensor, tuple(request.image_size))
+            frame = renderer.render_image(rays_tensor, tuple(request.image_size), include_samples=False)
             
             rgb = frame['rgb'].cpu().numpy()
             rgb = (rgb * 255).astype(np.uint8)
@@ -135,6 +143,8 @@ def render_orbital(request: RenderRequest):
             },
             'timestamp': datetime.now().isoformat()
         }
+    except ImageAdmissionError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as e:
         logger.error(f"Orbital render failed: {e}")
         logger.error(f"Internal error: {e}")
