@@ -51,7 +51,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen>
   late final PaymentRepository _paymentRepo;
   late final AddressRepository _addressRepo;
   late final ApiClient _apiClient;
-  bool _isPassengerMode = false;
+  final bool _isPassengerMode = false;
   bool _isAwaitingUpi = false;
   bool _showSuccess = false;
   bool _isLoading = true;

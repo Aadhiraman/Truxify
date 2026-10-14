@@ -7,12 +7,12 @@ class DesktopSidebar extends StatelessWidget {
   final VoidCallback onToggleCollapse;
 
   const DesktopSidebar({
-    Key? key,
+    super.key,
     required this.selectedIndex,
     required this.onDestinationSelected,
     required this.isCollapsed,
     required this.onToggleCollapse,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

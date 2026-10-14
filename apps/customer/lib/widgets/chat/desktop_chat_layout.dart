@@ -12,7 +12,7 @@ class DesktopChatLayout extends StatelessWidget {
   final String activeSubtitle;
 
   const DesktopChatLayout({
-    Key? key,
+    super.key,
     required this.conversations,
     required this.selectedConversationId,
     required this.onSelectConversation,
@@ -22,7 +22,7 @@ class DesktopChatLayout extends StatelessWidget {
     required this.onFilesDropped,
     required this.activeTitle,
     required this.activeSubtitle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

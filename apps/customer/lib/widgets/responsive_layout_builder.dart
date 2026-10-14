@@ -6,11 +6,11 @@ class ResponsiveLayoutBuilder extends StatelessWidget {
   final Widget desktopScaffold;
 
   const ResponsiveLayoutBuilder({
-    Key? key,
+    super.key,
     required this.mobileScaffold,
     required this.tabletScaffold,
     required this.desktopScaffold,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
