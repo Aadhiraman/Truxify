@@ -205,7 +205,6 @@ export class OrderLifecycleService {
           payment_method_id, upi_id,
           waypoints: optimizedWaypoints,
         });
-
         order = result.data;
         orderErr = result.error;
 
@@ -215,10 +214,22 @@ export class OrderLifecycleService {
 
       if (orderErr) {
         logger.error('Order Insertion Error:', orderErr.message);
-        throw new DomainError(500, { error: 'Failed to create order record.', details: orderErr.message });
+        throw new DomainError(500, {
+          error: 'Failed to create order record.',
+          details: orderErr.message
+        });
       }
 
-      const { error: timelineErr } = await this.orderTimelineService.generateDefaultTimeline(orderDisplayId);
+      if (!order) {
+        throw new DomainError(500, {
+          error: 'Failed to create order record.'
+        });
+      }
+
+      const { error: timelineErr } =
+        await this.orderTimelineService.generateDefaultTimeline(orderDisplayId);
+
+
 
       if (timelineErr) {
         logger.error('Timeline Insertion Error:', timelineErr.message);
