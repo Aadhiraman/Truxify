@@ -3,6 +3,8 @@ import redis
 import json
 import logging
 from collections import deque
+from copy import deepcopy
+from concurrent.futures import Future
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from .models import LSTMAutoencoder
@@ -20,6 +22,9 @@ class AnomalyDetector:
         self._generation_lock = RLock()
         self._training_lock = RLock()
         self._generations = {}
+        self._delivery_lock = RLock()
+        self._observation_sequence = 0
+        self._pending_delivery = deque()
         
         # Initialize models for different data types
         self.models = {
@@ -132,21 +137,57 @@ class AnomalyDetector:
                     'data_type': data_type, 'severity': severity,
                     'timestamp': datetime.now().isoformat(), 'data': owned.tolist(),
                     'generation': self._generations.get(data_type, 0),
+                    'sequence': self._observation_sequence + 1,
+                    'entity_key': entity_key or 'default',
                 }
+                # Own every outward record and payload before committing a frame.
+                report = deepcopy(result)
+                history_record = deepcopy(result) if result['is_anomaly'] else None
                 encoded = json.dumps(result, allow_nan=False)
+                event = json.dumps({
+                    'type': data_type, 'severity': severity, 'data': result,
+                    'timestamp': result['timestamp'],
+                }, allow_nan=False)
+                pending = (result, encoded, event, Future()) if result['is_anomaly'] else None
                 buffer = self._get_feature_buffer(data_type, entity_key)
                 buffer.append(scaled[0].copy())
-                if result['is_anomaly']:
-                    self.anomaly_history.append(result)
-                    self.redis.setex(f'anomaly:latest:{data_type}', 3600, encoded)
-                    self.redis.publish('anomaly:alerts', json.dumps({
-                        'type': data_type, 'severity': severity, 'data': result,
-                        'timestamp': datetime.now().isoformat(),
-                    }, allow_nan=False))
-                return result
+                self._observation_sequence = result['sequence']
+                if history_record is not None:
+                    self.anomaly_history.append(history_record)
+                    self._pending_delivery.append(pending)
+            # Network delivery has independent native ownership. It cannot hold
+            # the calibrated generation/window lock or undo a committed frame.
+            report['alert_delivery'] = (
+                self._deliver_alert(pending)
+                if result['is_anomaly'] else 'not_required'
+            )
+            return report
         except Exception as e:
             logger.error(f'Anomaly detection failed: {e}')
             return {'error': str(e)}
+
+    def _deliver_alert(self, target):
+        """Synchronously deliver prepared records in native commit order.
+
+        A caller can drain an earlier record whose original worker has not yet
+        reached delivery. Private futures carry outcomes back to their owner.
+        No generation lock is held during Redis I/O; no background task starts.
+        """
+        outcome = target[3]
+        if outcome.done():
+            return outcome.result()
+        with self._delivery_lock:
+            while not outcome.done():
+                with self._generation_lock:
+                    record, encoded, event, result = self._pending_delivery.popleft()
+                try:
+                    self.redis.setex(f"anomaly:latest:{record['data_type']}", 3600, encoded)
+                    self.redis.publish('anomaly:alerts', event)
+                    result.set_result('published')
+                except Exception as exc:
+                    logger.warning('Committed anomaly alert delivery unavailable: %s', exc)
+                    result.set_result('unavailable')
+        return outcome.result()
 
     def set_threshold(self, data_type, threshold):
         value = float(threshold)
@@ -281,7 +322,7 @@ class AnomalyDetector:
     def get_anomaly_history(self, data_type: Optional[str] = None) -> List[Dict]:
         """Get anomaly detection history"""
         with self._generation_lock:
-            history = list(self.anomaly_history)
+            history = deepcopy(list(self.anomaly_history))
         if data_type:
             return [h for h in history if h.get('data_type') == data_type]
         return history
