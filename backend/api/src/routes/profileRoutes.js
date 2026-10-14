@@ -274,7 +274,7 @@ router.put('/', authenticate, userLimiter, validateBody(updateProfileSchema), as
 
     // Invalidate cache...
     if (req.user?.uid) {
-      try { await invalidateCachedProfile(req.user.uid); } catch (_) {}
+      try { await invalidateCachedProfile(req.user.uid); } catch (err) { logger.debug({ userId: req.user.uid, err: err.message }, 'Failed to invalidate profile cache'); }
     }
     if (req.user?.id) {
       try { await invalidateCachedSupabaseProfileAll(req.user.id); } catch (err) {
