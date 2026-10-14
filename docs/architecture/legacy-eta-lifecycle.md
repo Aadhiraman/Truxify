@@ -1,6 +1,6 @@
 # Legacy ETA serving-generation ownership
 
-The standalone sklearn ETAPredictor serializes train/load with one instance-local reentrant lifecycle owner. Training fits a private candidate, writes its existing pickle/checksum paths, and only then publishes it under a short state owner. Existing warm predictions capture one model reference and run outside both owners; failed fitting, persistence or reading retains that serving reference. Cold callers recheck under the lifecycle owner so one successful cold preparation satisfies waiting predictions.
+The standalone sklearn ETAPredictor serializes train/load with one instance-local reentrant lifecycle owner. Training fits a private candidate, writes its existing pickle/checksum paths, and only then publishes it under a short state owner. Existing warm predictions capture one model reference and run outside both owners; failed fitting, persistence or reading retains that serving reference. A load fallback fits/persists privately and publishes only after its integrity check and actual pickle read succeed; verification/read failures leave warm serving state intact and cold state unset. Cold callers recheck under the lifecycle owner so one successful cold preparation satisfies waiting predictions.
 
 The synthetic fallback, seed stream, features, route conversion, minimum ETA and confidence formulas are unchanged. This is distinct from the traffic TensorFlow pipeline and does not implement A/B generation routing or move that endpoint off the event loop.
 

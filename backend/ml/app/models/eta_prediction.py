@@ -68,6 +68,12 @@ class ETAPredictor:
 
     @_model_writer
     def train(self):
+        candidate = self._fit_and_persist()
+        with self._state_lock:
+            self.model = candidate
+
+    def _fit_and_persist(self):
+        """Prepare privately; the owning train/load operation publishes last."""
         X, y = self.generate_synthetic_data()
 
         X_train, _, y_train, _ = train_test_split(
@@ -86,8 +92,7 @@ class ETAPredictor:
         with open(MODEL_PATH, "wb") as f:
             pickle.dump(candidate, f)
         self._save_hash()
-        with self._state_lock:
-            self.model = candidate
+        return candidate
 
     def _save_hash(self):
         with open(MODEL_PATH, "rb") as f:
@@ -109,13 +114,14 @@ class ETAPredictor:
     @_model_writer
     def load(self):
         if not os.path.exists(MODEL_PATH):
-            self.train()
+            self._fit_and_persist()
 
         if not self._verify_hash():
             logger.warning("[eta] Model integrity check failed — retraining.")
             os.remove(MODEL_PATH) if os.path.exists(MODEL_PATH) else None
-            self.train()
-            return
+            self._fit_and_persist()
+            if not self._verify_hash():
+                raise ValueError("Retrained ETA model did not pass its integrity check")
 
         with open(MODEL_PATH, "rb") as f:
             candidate = pickle.load(f)

@@ -124,3 +124,39 @@ def test_prediction_uses_one_captured_native_generation(predictor):
             release.set()
         assert task.result(10) == expected
     assert prediction(predictor) != expected
+
+
+@pytest.mark.parametrize("initial", ["missing", "corrupt"])
+@pytest.mark.parametrize("phase", ["hash_read", "pickle_read"])
+@pytest.mark.parametrize("warm", [False, True])
+def test_fallback_read_failure_never_publishes_prepared_model(
+        predictor, monkeypatch, initial, phase, warm):
+    from pathlib import Path
+    if warm:
+        predictor.model = fitted(predictor)
+    before = predictor.model
+    if initial == "corrupt":
+        Path(module.MODEL_PATH).write_bytes(b"old unusable artifact")
+    if phase == "hash_read":
+        native_save = predictor._save_hash
+        def directory_after_write():
+            native_save()
+            path = Path(module.MODEL_HASH_PATH)
+            path.unlink()
+            path.mkdir()
+        monkeypatch.setattr(predictor, "_save_hash", directory_after_write)
+        expected = IsADirectoryError
+    else:
+        native_verify = predictor._verify_hash
+        def unreadable_after_verification():
+            valid = native_verify()
+            if valid:
+                Path(module.MODEL_PATH).write_bytes(b"not a native pickle")
+            return valid
+        monkeypatch.setattr(predictor, "_verify_hash", unreadable_after_verification)
+        expected = pickle.UnpicklingError
+    with pytest.raises(expected):
+        predictor.load()
+    assert predictor.model is before
+    if warm:
+        assert np.isfinite(prediction(predictor)["eta_minutes"])
