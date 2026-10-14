@@ -635,6 +635,36 @@ router.post('/escrow/freeze', async (req, res) => {
  *     summary: Release escrow payment upon dispute resolution
  *     security:
  *       - ApiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               bookingId:
+ *                 type: string
+ *                 description: Order UUID or display id (orderId accepted as an alias)
+ *               orderId:
+ *                 type: string
+ *                 description: Alias of bookingId
+ *     responses:
+ *       200:
+ *         description: Escrow released (idempotent — alreadyReleased=true when previously released)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 message: { type: string }
+ *                 bookingId: { type: string }
+ *                 txHash: { type: string, nullable: true }
+ *                 alreadyReleased: { type: boolean }
+ *       400:
+ *         description: bookingId missing
+ *       500:
+ *         description: Release failed (details carry the upstream error message)
  */
 router.post('/escrow/release', async (req, res) => {
   const bookingId = req.body?.bookingId || req.body?.orderId;
