@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../models/trip_event.dart';
 
 class ConflictResolutionResult {
@@ -25,7 +27,7 @@ class ConflictResolver {
         supersededIds: supersededIds,
       );
     } catch (err, stack) {
-      print('[ConflictResolver Error] Failed in resolveWithDetails: $err\n$stack');
+      debugPrint('[ConflictResolver Error] Failed in resolveWithDetails: $err\n$stack');
       return ConflictResolutionResult(resolved: events, supersededIds: []);
     }
   }
