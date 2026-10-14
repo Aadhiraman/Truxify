@@ -265,10 +265,11 @@ class TrafficGraphBuilder:
                 node[1].get('lat', 0) / 90,
                 node[1].get('lng', 0) / 180
             ]
-            assert len(features) == self.NODE_FEATURE_DIM, (
-                f"Node feature count {len(features)} != NODE_FEATURE_DIM "
-                f"({self.NODE_FEATURE_DIM})"
-            )
+            if len(features) != self.NODE_FEATURE_DIM:
+                raise ValueError(
+                    f"Node feature count {len(features)} != NODE_FEATURE_DIM "
+                    f"({self.NODE_FEATURE_DIM})"
+                )
             node_features.append(features)
         
         # Edge indices
