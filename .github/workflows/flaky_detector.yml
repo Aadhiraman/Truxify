@@ -42,9 +42,9 @@ jobs:
           done
           echo "Passes: $pass_count, Failures: $fail_count"
           if [ $fail_count -gt 0 ] && [ $pass_count -gt 0 ]; then
-            echo "::set-output name=flaky::true"
+            echo "flaky=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::set-output name=flaky::false"
+            echo "flaky=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Execute Git Bisect Runner
