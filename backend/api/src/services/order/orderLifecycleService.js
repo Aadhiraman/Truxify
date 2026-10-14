@@ -184,7 +184,7 @@ export class OrderLifecycleService {
       const MAX_ID_RETRIES = ORDER_DISPLAY_ID_MAX_RETRIES;
       let order = null;
       let orderErr = null;
-      let orderDisplayId = null;
+      let orderDisplayId;
 
       for (let attempt = 0; attempt < MAX_ID_RETRIES; attempt++) {
         orderDisplayId = generateOrderDisplayId();
