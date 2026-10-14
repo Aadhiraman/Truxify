@@ -603,7 +603,7 @@ contract TruxifyEscrow is ReentrancyGuard, Ownable, Pausable {
                 releaseTimestamps[driver] = newDeadline;
             }
             emit WithdrawalReady(bookingId, driver, escrowAmount);
-            emit DisputeSettled(bytes32(bookingId), driver, escrowAmount);
+            emit DisputeSettled(bookingId, driver, escrowAmount);
         } else {
             pendingWithdrawals[customer] += escrowAmount;
             releaseTimestamps[customer] = newDeadline;

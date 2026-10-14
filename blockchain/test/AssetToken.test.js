@@ -16,6 +16,13 @@ describe("AssetToken", function () {
 
     await assetToken.waitForDeployment();
 
+    // purchaseFraction / createTradeOrder / executeTradeOrder / sellFraction
+    // all gate on isCompliant — KYC both standard buyers up front. Tests that
+    // exercise the compliance gate itself use `outsider` (left unverified).
+    for (const address of [buyer1.address, buyer2.address]) {
+      await assetToken.connect(owner).verifyCompliance(address);
+    }
+
     return {
       assetToken,
       owner,
@@ -586,6 +593,7 @@ describe("AssetToken", function () {
       owner,
       buyer1,
       buyer2,
+      outsider,
     } = await deployAssetToken();
 
     await createDefaultAsset(assetToken, owner);
@@ -598,8 +606,10 @@ describe("AssetToken", function () {
       }
     );
 
+    // buyer1/buyer2 are KYC'd in the fixture; `outsider` is left unverified
+    // to exercise the compliance gate.
     await assert.rejects(
-      assetToken.connect(buyer1).transferWithCompliance(
+      assetToken.connect(outsider).transferWithCompliance(
         1,
         buyer2.address,
         ethers.parseEther("4")
@@ -607,22 +617,14 @@ describe("AssetToken", function () {
       /Sender not compliant/
     );
 
-    await assetToken
-      .connect(owner)
-      .verifyCompliance(buyer1.address);
-
     await assert.rejects(
       assetToken.connect(buyer1).transferWithCompliance(
         1,
-        buyer2.address,
+        outsider.address,
         ethers.parseEther("4")
       ),
       /Recipient not compliant/
     );
-
-    await assetToken
-      .connect(owner)
-      .verifyCompliance(buyer2.address);
 
     await assetToken.connect(buyer1).transferWithCompliance(
       1,
@@ -1035,7 +1037,7 @@ describe("AssetToken", function () {
     );
 
     await assert.rejects(
-      assetToken.connect(outsider).purchaseFraction(
+      assetToken.connect(buyer2).purchaseFraction(
         1,
         ethers.parseEther("1"),
         {
