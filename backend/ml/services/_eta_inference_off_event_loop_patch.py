@@ -2,27 +2,19 @@ import asyncio
 import json
 from datetime import datetime, timedelta
 from functools import partial
-import threading
 
 import numpy as np
 
 from app.execution import run_inference
 from . import traffic_pipeline as _traffic_pipeline
+from ._eta_observations import observation_lock
 
 _BaseTrafficPipeline = _traffic_pipeline.TrafficPipeline
-_LOCK_INIT_GUARD = threading.Lock()
 
 
 def _get_predict_eta_lock(pipeline):
     """Return the thread lock used to serialize inference for one pipeline."""
-    lock = getattr(pipeline, "_eta_predict_lock", None)
-    if lock is None:
-        with _LOCK_INIT_GUARD:
-            lock = getattr(pipeline, "_eta_predict_lock", None)
-            if lock is None:
-                lock = threading.RLock()
-                pipeline._eta_predict_lock = lock
-    return lock
+    return observation_lock(pipeline)
 
 
 def _run_serialized_predict_eta(pipeline, features, route_id, route_signature):
