@@ -382,6 +382,24 @@ router.post('/defensive-pause', async (req, res) => {
  *         description: Database client is not available.
  *     security:
  *       - ApiKeyAuth: []
+ *     parameters:
+ *       - name: orderId
+ *         in: path
+ *         required: true
+ *         description: Order UUID or order display id.
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Dispute evidence package (order, parties, GPS trail, OTP logs, geofence validation)
+ *       401:
+ *         description: Missing or invalid API key
+ *       404:
+ *         description: Order not found
+ *       500:
+ *         description: Failed to retrieve order metadata
+ *       503:
+ *         description: Database client is not available
  */
 router.get('/dispute-evidence/:orderId', async (req, res) => {
   const { orderId } = req.params;
