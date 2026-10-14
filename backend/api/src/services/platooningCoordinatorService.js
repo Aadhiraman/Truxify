@@ -8,7 +8,7 @@
  * 4. Fail-safe emergency decoupling & heartbeat telemetry monitoring
  */
 
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { DomainError } from './order/domainError.js';
 import logger from '../middleware/logger.js';
 
@@ -159,7 +159,7 @@ export class PlatooningCoordinatorService {
     // Simulated partner generation when database has few live autonomous nodes
     const partners = [
       {
-        matchId: `PLT-${Math.floor(1000 + Math.random() * 9000)}`,
+        matchId: `PLT-${randomInt(1000, 10000)}`,
         truckId: 'TRX-8821',
         partnerDriverName: 'Sarah Jenkins',
         partnerCompany: 'Swift Logistics Tech',
@@ -173,7 +173,7 @@ export class PlatooningCoordinatorService {
         status: 'Available',
       },
       {
-        matchId: `PLT-${Math.floor(1000 + Math.random() * 9000)}`,
+        matchId: `PLT-${randomInt(1000, 10000)}`,
         truckId: 'TRX-9140',
         partnerDriverName: 'Marcus Cole',
         partnerCompany: 'Apex Freight Autonomous',
