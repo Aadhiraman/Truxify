@@ -44,9 +44,11 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import { authenticate } from "../middleware/auth.js";
+import { refreshToken } from "../controllers/authController.js";
 import {
   userLimiter,
   otpVerificationLimiter,
+  createStore,
 } from "../middleware/rateLimiter.js";
 import {
   invalidateCachedProfile,
@@ -288,10 +290,14 @@ import { requestOtp } from '../services/otpService.js';
  * Generates and delivers an OTP for phone number verification.
  * Resolves Issue #10471 - the producer half of the OTP flow.
  */
-router.post('/request-otp', 
-  rateLimit({ 
-    windowMs: 15 * 60 * 1000, 
+router.post('/request-otp',
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
     max: 10,
+    // The default MemoryStore is unreachable from the test harness — use the
+    // shared createStore (Redis-backed / memory fallback) so suites can
+    // reset the window between tests.
+    store: createStore('rl:auth-request-otp:'),
     message: 'Too many OTP requests from this IP'
   }),
   async (req, res) => {
@@ -444,16 +450,6 @@ router.post("/verify-otp", otpVerificationLimiter, async (req, res) => {
     logger.info({ event: "OTP_VERIFIED", phone }, "OTP verified");
     return res.status(200).json({ success: true, message: "OTP verified successfully." });
   } catch (err) {
-    logger.error({ event: "AUTH_OTP_UNEXPECTED_ERROR", error: err.message }, "Unexpected error during OTP verification");
-    logger.info(
-      {
-        event: "OTP_VERIFIED",
-        phone,
-      },
-      "OTP verified"
-    );
-    return res.status(200).json({ success: true, message: "OTP verified successfully." });
-  } catch (err) {
     logger.error(
       {
         event: "AUTH_OTP_UNEXPECTED_ERROR",
@@ -476,7 +472,7 @@ const JWT_SECRET = getJwtSecret();
  *   post:
  *     tags: [Authentication]
  *     summary: Exchange Firebase/Supabase ID Token for Backend JWT
- *   description: Verifies a Firebase ID token and returns a signed backend JWT token.
+ *     description: Verifies a Firebase ID token and returns a signed backend JWT token.
  *     Identity and role are derived exclusively from the verified token and the
  *     stored profile; caller-supplied identity or role fields are ignored.
  *     responses:
@@ -555,6 +551,16 @@ router.post("/verify", async (req, res) => {
         .eq("firebase_uid", verifiedUid)
         .maybeSingle();
 
+      // A PostgREST error does not throw — it returns { error }. Fail closed
+      // with a sanitized 500 rather than treating it as "no profile" (403)
+      // or, worse, using data that accompanied an error.
+      if (byUid.error) {
+        logger.warn(`[auth/verify] Supabase profile lookup failed: ${byUid.error.message}`);
+        return res.status(500).json({
+          success: false,
+          error: "Database error during authentication. Please try again.",
+        });
+      }
       profile = byUid.data || null;
 
       if (!profile && verifiedEmail) {
@@ -563,6 +569,13 @@ router.post("/verify", async (req, res) => {
           .select("id, role, full_name, phone, email, firebase_uid")
           .eq("email", verifiedEmail)
           .maybeSingle();
+        if (byEmail.error) {
+          logger.warn(`[auth/verify] Supabase profile email lookup failed: ${byEmail.error.message}`);
+          return res.status(500).json({
+            success: false,
+            error: "Database error during authentication. Please try again.",
+          });
+        }
         profile = byEmail.data || null;
       }
     } catch (dbErr) {

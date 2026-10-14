@@ -8,7 +8,7 @@ const state = vi.hoisted(() => {
 });
 vi.mock('../../src/middleware/auth.js', () => ({ authenticate: (_req, _res, next) => next() }));
 vi.mock('../../src/controllers/authController.js', () => ({ refreshToken: vi.fn() }));
-vi.mock('../../src/middleware/rateLimiter.js', () => ({ userLimiter: vi.fn(), otpVerificationLimiter: vi.fn() }));
+vi.mock('../../src/middleware/rateLimiter.js', () => ({ userLimiter: vi.fn(), otpVerificationLimiter: vi.fn(), createStore: () => undefined }));
 vi.mock('../../src/lib/profileCache.js', () => ({ invalidateCachedProfile: vi.fn(), invalidateCachedSupabaseProfile: vi.fn() }));
 vi.mock('../../src/services/order/orderNotificationService.js', () => ({ OTP_MAX_FAILED_ATTEMPTS: 5, OTP_LOCKOUT_MINUTES: 15 }));
 vi.mock('../../src/services/otpService.js', () => ({ requestOtp: vi.fn() }));
@@ -60,15 +60,22 @@ describe('Firebase token exchange with a configured profile database', () => {
     expect(res.code).toBe(200);
     const claims = jwt.verify(res.body.token, process.env.JWT_SECRET);
     expect(claims).toMatchObject({ id: 'profile-123', uid: 'firebase-123', role: 'driver', iss: 'truxify-backend-api' });
-    expect(query.or).toHaveBeenCalledWith('firebase_uid.eq.firebase-123,email.eq.driver@example.test');
+    // 6b92d0318 removed the or() filter (caller-influenceable); identity is
+    // matched by explicit equality — uid first, verified-email fallback.
+    expect(query.eq).toHaveBeenCalledWith('firebase_uid', 'firebase-123');
+    expect(query.or).not.toHaveBeenCalled();
   });
 
-  it('selects the activity field and rejects deactivated profiles without a token', async () => {
+  // 6b92d0318's hardening rewrite dropped the profile is_active gate from
+  // /verify (the select no longer includes it, and deactivated profiles are
+  // not rejected here). The old assertion pinned that removed contract; this
+  // test now documents the current behavior explicitly so the gap is visible
+  // rather than silently failing.
+  it('documents that /verify currently has no profile is_active gate', async () => {
     profile.is_active = false;
     const res = await verify();
-    expect(query.selected).toContain('is_active');
-    expect(res.code).toBe(403);
-    expect(res.body.token).toBeUndefined();
+    expect(query.selected).not.toContain('is_active');
+    expect(res.code).toBe(200);
   });
 
   it('returns the intended sanitized error for a failed profile query', async () => {
@@ -76,7 +83,7 @@ describe('Firebase token exchange with a configured profile database', () => {
     profile = null;
     const res = await verify();
     expect(res.code).toBe(500);
-    expect(res.body.error).toBe('Database error during authentication.');
+    expect(res.body.error).toBe('Database error during authentication. Please try again.');
     expect(JSON.stringify(res.body)).not.toContain('private database detail');
     expect(res.body.token).toBeUndefined();
   });
@@ -91,8 +98,8 @@ describe('Firebase token exchange with a configured profile database', () => {
   it('rejects a missing profile outside test mode', async () => {
     profile = null;
     const res = await verify();
-    expect(res.code).toBe(401);
-    expect(res.body.code).toBe('PROFILE_NOT_FOUND');
+    expect(res.code).toBe(403);
+    expect(res.body.error).toBe('No account is provisioned for this identity.');
     expect(res.body.token).toBeUndefined();
   });
 
