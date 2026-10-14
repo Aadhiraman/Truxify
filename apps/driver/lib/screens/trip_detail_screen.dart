@@ -957,7 +957,7 @@ Widget _cargoBadge({
                           ),
                         ),
                       );
-                      if (released == true && mounted) {
+                      if (released == true && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Row(

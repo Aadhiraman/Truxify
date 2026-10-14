@@ -768,15 +768,15 @@ class _PastTripsScreenState extends State<PastTripsScreen> {
                             icon: const Icon(Icons.copy_rounded, size: 16, color: Colors.grey),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
-                            onPressed: () {
-                              Clipboard.setData(ClipboardData(text: txHash)).then((_) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Transaction hash copied to clipboard!'),
-                                    backgroundColor: TruxifyColors.success,
-                                  ),
-                                );
-                              });
+                            onPressed: () async {
+                              await Clipboard.setData(ClipboardData(text: txHash));
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Transaction hash copied to clipboard!'),
+                                  backgroundColor: TruxifyColors.success,
+                                ),
+                              );
                             },
                           ),
                         ],
