@@ -32,14 +32,14 @@ describe('mid-trip routing duration contract', () => {
   });
 
   it('rejects a short-distance insertion whose road travel time exceeds the limit', async () => {
-    routes({ distanceKm: 100, durationSeconds: 3600 }, Array(3).fill({ distanceKm: 35, durationSeconds: 3000 }));
+    routes({ distanceKm: 100, durationSeconds: 3600 }, Array.from({ length: 3 }, () => ({ distanceKm: 35, durationSeconds: 3000 })));
     const result = await service.findMidTripLoadOpportunities(input);
     expect(result.baselineRoute.durationMinutes).toBe(60);
     expect(result.opportunities).toEqual([]); // 150 - 60 = 90 minutes, over the default 60.
   });
 
   it('accepts a road-time-feasible insertion and uses that time in profit ranking', async () => {
-    routes({ distanceKm: 100, durationSeconds: 3600 }, Array(3).fill({ distanceKm: 40, durationSeconds: 1500 }));
+    routes({ distanceKm: 100, durationSeconds: 3600 }, Array.from({ length: 3 }, () => ({ distanceKm: 40, durationSeconds: 1500 })));
     const result = await service.findMidTripLoadOpportunities({ ...input, maxDetourMinutes: 20 });
     expect(result.opportunities).toHaveLength(1); // 75 - 60 = 15, not distance proxy's 30.
     expect(result.opportunities[0]).toMatchObject({ marginalDetourMinutes: 15, efficiencyScore: 647.33 });
@@ -56,7 +56,7 @@ describe('mid-trip routing duration contract', () => {
   });
 
   it('keeps the existing distance proxy when every road duration is absent', async () => {
-    routes({ distanceKm: 100, durationSeconds: null }, Array(3).fill({ distanceKm: 40, durationSeconds: null }));
+    routes({ distanceKm: 100, durationSeconds: null }, Array.from({ length: 3 }, () => ({ distanceKm: 40, durationSeconds: null })));
     const result = await service.findMidTripLoadOpportunities(input);
     expect(result.baselineRoute.durationMinutes).toBe(150);
     expect(result.opportunities[0].marginalDetourMinutes).toBe(30);
