@@ -89,7 +89,7 @@ export function publishTrailerRepositioningListing(listingParams = {}) {
         demandTier = 'BALANCED'
     } = listingParams;
 
-    const listingId = `p2p-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const listingId = `p2p-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
     const pricing = calculateRepositioningYieldPricing(dailyRateUSD, daysIdle, demandTier);
 
@@ -174,7 +174,7 @@ export function bookTrailerWithEscrow(listingId, seekerCarrierId, rentalDays = 1
     const securityDepositUSD = options.securityDepositUSD || DEFAULT_SECURITY_DEPOSIT_USD;
     const totalEscrowHoldUSD = parseFloat((totalRentalFeeUSD + securityDepositUSD).toFixed(2));
 
-    const bookingId = `book-p2p-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const bookingId = `book-p2p-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     const bookedAt = new Date().toISOString();
 
     const interchangeHash = crypto
