@@ -39,38 +39,6 @@ class MarketplaceRepository {
     _apiClient.dispose();
   }
 
-  Future<String?> _firebaseAccessToken() async {
-    try {
-      return await FirebaseAuth.instance.currentUser?.getIdToken();
-    } catch (e) {
-      debugPrint('Firebase token error: $e');
-      return null;
-    }
-  }
-
-  String? _supabaseAccessToken() {
-    try {
-      return _client.auth.currentSession?.accessToken;
-    } catch (e) {
-      debugPrint('Supabase token error: $e');
-      return null;
-    }
-  }
-
-  Future<Map<String, String>> _authHeaders() async {
-    final token = _supabaseAccessToken() ?? await _firebaseAccessToken();
-    if (token != null && token.isNotEmpty) {
-      // Persist to OS-backed secure storage for background sync and
-      // WebSocket reconnects (issue #5739).
-      unawaited(AuthTokenStore.persist(token));
-    }
-    return <String, String>{
-      'Content-Type': 'application/json',
-      if (token != null && token.isNotEmpty)
-        'Authorization': 'Bearer $token',
-    };
-  }
-
   Future<List<LoadOffer>> fetchLoadOffers() async {
     final path = '/api/loads';
     try {
