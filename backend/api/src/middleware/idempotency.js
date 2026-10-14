@@ -92,6 +92,7 @@ export function requireIdempotency(ttlSeconds = 3600) {
     req.idempotencyKey = idempotencyKey;
     const key = cacheKey(req, idempotencyKey);
 
+    let restoreJson = () => {};
     try {
       let pendingCache = null;
       let responded = false;
@@ -218,36 +219,62 @@ export function requireIdempotency(ttlSeconds = 3600) {
         res.once('close', releaseMemoryLock);
       }
 
-      const originalJson = res.json.bind(res);
+      const originalJson = res.json;
+      let jsonRestored = false;
+      restoreJson = () => {
+        if (!jsonRestored) {
+          jsonRestored = true;
+          res.json = originalJson;
+          if (typeof res.removeListener === 'function') {
+            res.removeListener('finish', restoreJson);
+            res.removeListener('close', restoreJson);
+          }
+        }
+      };
+
+      if (typeof res.once === 'function') {
+        res.once('finish', restoreJson);
+        res.once('close', restoreJson);
+      }
+
       res.json = function (body) {
-        if (responded) return originalJson(body);
+        restoreJson();
+        if (responded) return originalJson.call(this || res, body);
         responded = true;
 
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          const cacheData = JSON.stringify({ statusCode: res.statusCode, body });
+          try {
+            const cacheData = JSON.stringify({ statusCode: res.statusCode, body });
 
-          if (redisClient) {
-            pendingCache = redisClient.set(key, cacheData, 'EX', ttlSeconds).catch((err) => {
-              logger.error(
-                { event: 'IDEMPOTENCY_CACHE_SET_ERROR', idempotencyKey, error: err && err.message },
-                '[Idempotency] Failed to cache response'
-              );
-            });
-          } else {
-            setInMemory(key, cacheData, ttlMs);
+            if (redisClient) {
+              pendingCache = redisClient.set(key, cacheData, 'EX', ttlSeconds).catch((err) => {
+                logger.error(
+                  { event: 'IDEMPOTENCY_CACHE_SET_ERROR', idempotencyKey, error: err && err.message },
+                  '[Idempotency] Failed to cache response'
+                );
+              });
+            } else {
+              setInMemory(key, cacheData, ttlMs);
+            }
+          } catch (serializeErr) {
+            logger.error(
+              { event: 'IDEMPOTENCY_CACHE_SERIALIZE_ERROR', idempotencyKey, error: serializeErr && serializeErr.message },
+              '[Idempotency] Failed to serialize response for caching'
+            );
           }
         }
 
-        return originalJson(body);
+        return originalJson.call(this || res, body);
       };
 
       next();
     } catch (err) {
+      restoreJson();
       logger.error(
         { event: 'IDEMPOTENCY_PROCESS_ERROR', key: key && key.substring(0, 50), error: err && err.message },
         '[Idempotency] Error processing idempotency key'
       );
-      next();
+      next(err);
     }
   };
 }
