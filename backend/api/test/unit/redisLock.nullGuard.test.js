@@ -87,9 +87,12 @@ describe('RedisLock Null Safety (#9427)', () => {
             expect(typeof acquireLock).toBe('function');
         });
 
-        it('should return a promise', () => {
+        it('should return a promise', async () => {
             const result = acquireLock('test-resource', 30000);
             expect(result).toBeInstanceOf(Promise);
+            // The strict-mode rejection is asserted in the next test — swallow
+            // it here so the promise isn't an unhandled rejection.
+            await result.catch(() => {});
         });
 
         it('should throw LockAcquisitionError when redisClient is null', async () => {

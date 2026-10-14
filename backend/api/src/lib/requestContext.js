@@ -33,6 +33,28 @@ export function requestContextMiddleware(req, res, next) {
 /**
  * Retrieves the current request context store.
  */
+/**
+ * Request-scoped query cache accessor (393cfa1a7f) — orderRepository's
+ * _cachedQuery imports this; dropped by the heartbeat refactor.
+ */
+export function getRequestCache() {
+  const store = asyncLocalStorage.getStore();
+  return store?.requestCache ?? null;
+}
+
+/**
+ * Parse JSON, returning the fallback for null/invalid/non-object input.
+ * (Removed by 57e60ebfde; two suites pin the contract.)
+ */
+export function safeJsonParseWithFallback(raw, fallback) {
+  if (raw == null) return fallback;
+  try {
+    const v = JSON.parse(raw);
+    if (v && typeof v === 'object' && !Array.isArray(v)) return v;
+  } catch (_) {}
+  return fallback;
+}
+
 export function getRequestContext() {
   return asyncLocalStorage.getStore();
 }
