@@ -318,7 +318,7 @@ export default new KafkaConfig();
 // === Spec 32: ===
 // === Spec 32: connection leak ===
 export async function recreateConsumer(oldC, factory) {
-  try { if (oldC?.disconnect) await oldC.disconnect(); } catch (_) {}
+  try { if (oldC?.disconnect) await oldC.disconnect(); } catch (err) { logger.debug('Failed to disconnect old Kafka client:', err); }
   return factory();
 }
 
