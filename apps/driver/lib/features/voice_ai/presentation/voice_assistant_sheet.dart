@@ -11,7 +11,7 @@ class VoiceAssistantSheet extends StatefulWidget {
   const VoiceAssistantSheet({super.key, required this.backendUrl});
 
   @override
-  _VoiceAssistantSheetState createState() => _VoiceAssistantSheetState();
+  State<VoiceAssistantSheet> createState() => _VoiceAssistantSheetState();
 }
 
 class _VoiceAssistantSheetState extends State<VoiceAssistantSheet> {
