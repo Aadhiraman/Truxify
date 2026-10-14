@@ -242,14 +242,10 @@ class DriverEarningsService {
         .select('wallet_confirmed, wallet_pending, wallet_total')
         .eq('user_id', driverId!);
 
-    if (response is! List) {
-      throw StateError('Unexpected wallet summary response type');
-    }
+    // postgrest returns List<Map<String, dynamic>>; the copy keeps a runtime
+    // safety net without dead type checks (the SDK type makes them static).
     if (response.isNotEmpty) {
-      final first = response.first;
-      if (first is Map<String, dynamic>) return first;
-      if (first is Map) return Map<String, dynamic>.from(first);
-      throw StateError('Unexpected wallet summary item type');
+      return Map<String, dynamic>.from(response.first as Map);
     }
     return {};
   }
