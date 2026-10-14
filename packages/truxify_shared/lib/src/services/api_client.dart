@@ -284,14 +284,14 @@ Future<http.Response> _execute(
     return retryResponse;
   }
 
-  // Handle rate limiting (429)
-  if (response.statusCode == 429 && !isRetry) {
-    final retryAfterHeader = response.headers['retry-after'];
-
-    int retrySeconds = int.tryParse(retryAfterHeader ?? '') ?? 1;
-
-    // Cap maximum wait time to 30 seconds
-    retrySeconds = retrySeconds.clamp(1, 30).toInt();
+  // Handle rate limiting (429) via the configured RetryPolicy
+  if (response.statusCode == 429 && !isRetry && _retryPolicy.retryOnRateLimit) {
+    // RetryPolicy.parseRetryAfter supports both integer-seconds and HTTP-date
+    // formats; the cap comes from the policy, not a hardcoded constant.
+    final retrySeconds = _retryPolicy
+        .parseRetryAfter(response.headers)
+        .clamp(1, _retryPolicy.maxRetryAfterSeconds)
+        .toInt();
 
     await Future.delayed(Duration(seconds: retrySeconds));
 
