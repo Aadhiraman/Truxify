@@ -166,10 +166,34 @@ router.get('/withdrawals/stuck', authenticate, userLimiter, requirePolicy('admin
 
 /**
  * @openapi
- * /api/v1/admin/withdrawals/:id/retry:
+ * /api/v1/admin/withdrawals/{id}/retry:
  *   post:
  *     tags: [Admin]
  *     summary: Manually retry a stuck/DLQ withdrawal
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: Withdrawal identifier to retry.
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Withdrawal retry scheduled.
+ *       409:
+ *         description: Withdrawal is not in a retryable state.
+ *       500:
+ *         description: Retry failed.
+ *     security:
+ *       - BearerAuth: []
  */
 router.post('/withdrawals/:id/retry', authenticate, userLimiter, requirePolicy('admin:manage-finances'), auditLog({ action: 'admin:retry-withdrawal' }), async (req, res) => {
   try {
@@ -200,10 +224,34 @@ router.post('/withdrawals/:id/retry', authenticate, userLimiter, requirePolicy('
 
 /**
  * @openapi
- * /api/v1/admin/withdrawals/:id/refund:
+ * /api/v1/admin/withdrawals/{id}/refund:
  *   post:
  *     tags: [Admin]
  *     summary: Force-refund reserved funds for a stuck withdrawal back to the driver
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: Withdrawal identifier to refund.
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Refund applied.
+ *       409:
+ *         description: Withdrawal is not in a refundable state.
+ *       500:
+ *         description: Refund failed.
+ *     security:
+ *       - BearerAuth: []
  */
 router.post('/withdrawals/:id/refund', authenticate, userLimiter, requirePolicy('admin:manage-finances'), auditLog({ action: 'admin:refund-withdrawal' }), async (req, res) => {
   try {
