@@ -58,10 +58,19 @@ router.post(
     const { truckId, bolId } = req.body;
 
     try {
-        const { truckId, bolId } = req.body;
 
         if (!truckId || !bolId) {
             return res.status(400).json({ error: 'Missing required truck/load parameters' });
+        }
+
+        // Fail closed before doing any work: if the signing secret is not
+        // configured, no credential can ever be issued safely.
+        if (!hasWimSigningSecret()) {
+            logger.error(
+                { event: 'WIM_SIGNING_FAILURE', truckId, bolId, actorId: req.user.id },
+                '[WIM] Signing secret unavailable; refusing to issue bypass credential.',
+            );
+            return res.status(500).json({ error: 'Unable to issue bypass credential.' });
         }
 
         // Never trust client-supplied safetyScore / axleWeight / maxWeightLimit.
@@ -109,42 +118,33 @@ router.post(
             return res.status(500).json({ error: 'Failed to verify driver registration.' });
         }
 
-        const rawTruckCapacity = truck.max_capacity_tons;
-        const rawLoadWeight = order.weight_tonnes;
+        // A driver verified through an approved government document counts the
+        // same as a DigiLocker-verified profile (see 1edfc5f66).
+        let isVerified = Boolean(profile?.is_digilocker_verified);
+        if (!isVerified) {
+            const { data: verifiedDocs } = await supabaseAdmin
+                .from('driver_documents')
+                .select('id')
+                .eq('driver_id', req.user.id)
+                .or('is_govt_verified.eq.true,status.in.(approved,verified)')
+                .limit(1);
+            isVerified = Boolean(verifiedDocs && verifiedDocs.length > 0);
+        }
 
-        const maxWeightLimit = Number(rawTruckCapacity) * LBS_PER_TONNE;
-        const axleWeight = Number(rawLoadWeight) * LBS_PER_TONNE;
-        // There is no safety-score column in the schema; derive the safety
-        // signal from the driver's verified registration (fail closed to 0).
-        const safetyScore = isVerified ? 100 : 0;
+        const measurement = buildTrustedMeasurement({
+            truck,
+            order,
+            driverProfile: { ...profile, is_digilocker_verified: isVerified },
+        });
 
-
-        // Number(null) and Number('') are both 0, so a load with no registered
-        // weight used to coerce to the lightest possible axle weight and be
-        // granted a bypass. The service's own typeof check cannot catch this
-        // because by the time it runs the value is already the number 0.
-        // Validate the raw column values and fail closed on anything missing,
-        // non-numeric or non-positive.
-        if (!Number.isFinite(axleWeight) || axleWeight <= 0
-            || !Number.isFinite(maxWeightLimit) || maxWeightLimit <= 0) {
-            logger.warn('[WIM] Truck/load records missing or invalid weight data, failing closed:', {
-                truckId,
-                bolId,
-                rawTruckCapacity,
-                rawLoadWeight,
-            });
+        if (!Number.isFinite(measurement.weightLbs) || !Number.isFinite(measurement.capacityLbs)) {
+            logger.warn('[WIM] Truck/load records missing weight data, failing closed:', { truckId, bolId });
+            res.locals.wimMetadata = { outcome: 'rejected', reason: 'missing-weight-data', truckId, bolId };
             return res.json({
                 signal: 'PULL_IN',
                 message: 'Truck must pull into weigh station.',
             });
         }
-
-        const isEligible = evaluateBypassEligibility({
-            safetyScore,
-            axleWeight,
-            maxWeightLimit,
-        });
-      }
 
       // Server-side freshness + vehicle/load correlation of the trusted measurement.
       const measurementCheck = validateTrustedMeasurement(measurement, {
