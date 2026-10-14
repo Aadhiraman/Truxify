@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import logger from '../middleware/logger.js';
 import { ValidationError } from '../utils/errors.js';
 
