@@ -69,8 +69,10 @@ describe('documentValidator', () => {
   it('validateExtractedFields reports missing required fields', () => {
     const res = validateExtractedFields('DL', { name: 'Ram', dob: '1990-01-01' });
     expect(res.valid).toBe(false);
-    expect(res.missingFields).toEqual(['validity']);
-    const ok = validateExtractedFields('DL', { name: 'Ram', dob: '1990-01-01', validity: '2030-01-01' });
+    // the parser emits 'valid_until' — the rules table uses that field name
+    // (fixed in the documentVerification PR; 'validity' was a phantom name)
+    expect(res.missingFields).toEqual(['valid_until']);
+    const ok = validateExtractedFields('DL', { name: 'Ram', dob: '1990-01-01', valid_until: '2030-01-01' });
     expect(ok.valid).toBe(true);
   });
 
