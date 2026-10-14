@@ -60,9 +60,12 @@ describe('apiResponse helpers', () => {
       expect(result.pagination.hasPrevPage).toBe(false);
     });
 
-    it('clamps negative page values to 0', () => {
+    // The production paginated() deliberately normalizes page to a MINIMUM of 1
+    // (preventing 0-indexed off-by-one errors) — this suite previously expected
+    // the pre-fix clamp-to-0 behavior.
+    it('clamps negative page values to 1 (1-indexed pages)', () => {
       const result = paginated([], -5, 10, 0);
-      expect(result.pagination.page).toBe(0);
+      expect(result.pagination.page).toBe(1);
       expect(result.pagination.hasNextPage).toBe(false);
       expect(result.pagination.hasPrevPage).toBe(false);
     });
