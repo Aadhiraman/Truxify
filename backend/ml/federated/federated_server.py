@@ -12,6 +12,11 @@ from cryptography.fernet import Fernet, MultiFernet, InvalidToken
 
 from threading import RLock
 
+from .round_recovery import (
+    MAX_CLIENTS, RoundRecoveryError, SnapshotUnavailableError, SnapshotWriteError, commit as commit_snapshot,
+    ensure as ensure_snapshot, record as round_record, restore as restore_snapshot,
+)
+
 from .model_updates import (
     MAX_ENVELOPE_BYTES, admit_model_weights, prepare_round_candidate, round_synchronized,
 )
@@ -109,6 +114,12 @@ class FederatedServer:
         clients_per_round: int = 5,
     ):
         self._round_lock = RLock()
+        self._snapshot_receipt = None
+        self._snapshot_uncertain = False
+        self._recovery_error = None
+        for name, value in (('min_clients', min_clients), ('clients_per_round', clients_per_round)):
+            if type(value) is not int or not 1 <= value <= MAX_CLIENTS:
+                raise ValueError(f'{name} must be an integer in [1, {MAX_CLIENTS}]')
         self.min_clients = min_clients
         self.clients_per_round = clients_per_round
         if self.clients_per_round < self.min_clients:
@@ -131,6 +142,9 @@ class FederatedServer:
         self.encryption_key: Optional[bytes] = None
         self.historical_keys: List[bytes] = []
         self.cipher = None
+        # Initialize policy before recovery so confirmed round values survive restart.
+        self.dp_noise_scale = 0.01
+        self.dp_clip_norm = 1.0
         self._init_encryption_keys()
 
         try:
@@ -138,10 +152,6 @@ class FederatedServer:
             self._load_persisted_state()
         except Exception as e:
             logger.warning(f"Could not connect to Redis on init: {e}")
-
-        # Differential Privacy settings
-        self.dp_noise_scale = 0.01
-        self.dp_clip_norm = 1.0
 
         logger.info("✅ Federated Server initialized")
 
@@ -340,46 +350,21 @@ class FederatedServer:
     @round_synchronized
     def start_round(self):
         """Start new federated learning round"""
-        # Get available clients
+        ensure_snapshot(self)
         clients = self._get_available_clients()
         if len(clients) < self.min_clients:
             logger.warning(f"Not enough clients: {len(clients)} < {self.min_clients}")
             return None
-
-        self.round += 1
-
-        # Select clients for this round
-        selected_count = min(self.clients_per_round, len(clients))
-        selected_clients = clients[:selected_count]
-        # Reset round state so a new round starts from a clean slate and the
-        # aggregation threshold reflects only this round's participants.
-        self.selected_clients = selected_clients
-        self.current_round = self.round
-        self.client_weights.clear()
-        self.round_completed = False
-
-        try:
-            self.redis.set('federated:round', self.round)
-            self.redis.set('federated:selected_clients', json.dumps(selected_clients))
-        except Exception as e:
-            logger.warning(f"Could not persist round to Redis: {e}")
-
-        # Start update consumer if not already running
+        selected = clients[:min(self.clients_per_round, len(clients))]
+        baseline = self.model.get_weights() if self.global_weights is None else self.global_weights
+        commit_snapshot(self, round_record(self, round_id=self.round + 1, selected=selected,
+                        updates={}, accepted=[], baseline=baseline))
+        self._persist_legacy_mirrors()
         self.start_update_consumer()
-
-        # Broadcast global model weights
-        if self.global_weights is None:
-            self.global_weights = self.model.get_weights()
-
-        # Send weights to clients
-        for client_id in selected_clients:
+        for client_id in self.selected_clients:
             self._send_weights_to_client(client_id, self.global_weights)
-
-        return {
-            'round': self.round,
-            'clients': selected_clients,
-            'timestamp': datetime.now().isoformat()
-        }
+        return {'round': self.round, 'clients': list(self.selected_clients),
+                'timestamp': datetime.now().isoformat()}
 
     def _get_available_clients(self):
         """Get list of available clients"""
@@ -444,6 +429,8 @@ class FederatedServer:
 
     def _load_persisted_state(self):
         """Restore current round, selected clients, and accepted (client_id, round) set."""
+        if restore_snapshot(self):
+            return
         try:
             saved_round = self.redis.get('federated:round')
             if saved_round is not None and isinstance(saved_round, (int, str, bytes)):
@@ -469,16 +456,26 @@ class FederatedServer:
         except Exception:
             pass
 
-    def _persist_accepted(self):
-        """Persist current round and the set of accepted (client_id, round)."""
+        # Legacy identities have no trustworthy model/contribution receipt.
+        # Refuse invented recovery; no legacy keys are deleted automatically.
+        if self.round or self.selected_clients or self.accepted_updates:
+            self._recovery_error = 'legacy round has no complete native recovery receipt'
+
+    def _persist_legacy_mirrors(self):
+        """Compatibility/cache keys follow confirmed state, never authorize it."""
         try:
             self.redis.set('federated:round', self.round)
-            self.redis.set(
-                'federated:accepted',
-                json.dumps([list(t) for t in self.accepted_updates]),
-            )
+            self.redis.set('federated:selected_clients', json.dumps(self.selected_clients))
+            if self.accepted_updates:
+                self.redis.set('federated:accepted', json.dumps([list(p) for p in self.accepted_updates]))
+            if self.round_completed:
+                self.redis.set(f'federated:round_completed:{self.round}', 'true')
         except Exception:
-            logger.warning("Failed to persist federated round state")
+            logger.warning('Federated compatibility mirrors unavailable after confirmed commit')
+
+    def _persist_accepted(self):
+        """Retained compatibility entry point; mirrors are not recovery authority."""
+        self._persist_legacy_mirrors()
 
     def drain_pending_client_updates(self):
         """Consume any pending client updates from federated:update:{client_id}
@@ -555,6 +552,7 @@ class FederatedServer:
         keyed by ``(client_id, round)`` are dropped.
         """
         try:
+            ensure_snapshot(self)
             if getattr(self, 'round_completed', False) or self.round in getattr(self, 'completed_rounds', set()):
                 logger.warning(f"Rejected update from {client_id}: round {self.round} already completed")
                 return {'success': False, 'error': f'Round {self.round} is already completed'}
@@ -636,70 +634,52 @@ class FederatedServer:
             # Convert back to numpy arrays
             weights_np = admit_model_weights(weights, self.model.get_weights())
 
-            # Store client weights (current-round only)
-            self.client_weights[client_id] = weights_np
-            self.accepted_updates.add((client_id, update_round))
-            self._persist_accepted()
-
-            logger.info(f"📥 Received update from client {client_id} (round {update_round})")
-
-            # Check if all selected clients for this round have responded
-            if self.selected_clients and len(self.client_weights) >= len(self.selected_clients):
-                self._aggregate_weights()
-
+            contributions = {**self.client_weights, client_id: weights_np}
+            accepted = self.accepted_updates | {(client_id, update_round)}
+            if self.selected_clients and len(contributions) >= len(self.selected_clients):
+                return self._finish_round(contributions, accepted)
+            commit_snapshot(self, round_record(self, updates=contributions,
+                            accepted=sorted(c for c, r in accepted if r == self.round)))
+            self._persist_legacy_mirrors()
+            logger.info(f"Received confirmed update from {client_id} (round {update_round})")
             return {'success': True}
-
         except Exception as e:
             logger.error(f"Failed to process client update: {e}")
-            return {'success': False, 'error': str(e)}
+            return {'success': False, 'error': str(e), 'retryable': isinstance(e, (SnapshotWriteError, SnapshotUnavailableError))}
 
     @round_synchronized
     def _aggregate_weights(self):
         """Aggregate client weights using Federated Averaging"""
-        if getattr(self, 'round_completed', False) or self.round in getattr(self, 'completed_rounds', set()):
-            logger.warning(f"Round {self.round} already aggregated; skipping duplicate aggregation")
+        ensure_snapshot(self)
+        return self._finish_round(self.client_weights, self.accepted_updates)
+
+    def _finish_round(self, contributions, accepted):
+        if self.round_completed or self.round in self.completed_rounds or not contributions:
             return False
-
-        if not self.client_weights:
-            return False
-
-        num_clients = len(self.client_weights)
-
-        # Prepare complete native-dtype candidates without changing accepted
-        # buffers or the published baseline. Keras receives only a validated
-        # full schema before global_weights/completion state is published.
+        admitted_clients = {c for c, r in accepted if r == self.round}
+        if set(contributions) != admitted_clients or not admitted_clients <= set(self.selected_clients):
+            raise RoundRecoveryError('aggregation requires matching accepted contribution receipts')
         new_weights = prepare_round_candidate(
-            self.client_weights, self.global_weights, self.model.get_weights(),
+            contributions, self.global_weights, self.model.get_weights(),
             self.dp_clip_norm, self.dp_noise_scale,
         )
-        self.model.set_weights(new_weights)
-        self.global_weights = [w.copy() for w in new_weights]
-
-        # Mark round as completed to prevent duplicate aggregation
-        self.round_completed = True
-        self.completed_rounds.add(self.round)
+        count = len(contributions)
+        commit_snapshot(self, round_record(self, updates={}, completed=True, baseline=new_weights,
+                        accepted=sorted(c for c, r in accepted if r == self.round)))
+        self._persist_legacy_mirrors()
+        checkpoint_saved = broadcasted = False
         try:
-            self.redis.set(f'federated:round_completed:{self.round}', 'true')
+            self._save_checkpoint()
+            checkpoint_saved = True
         except Exception:
-            pass
-
-        # Log round completion
-        logger.info(f"✅ Round {self.round} completed with {num_clients} clients")
-
-        # Save model checkpoint
-        self._save_checkpoint()
-
-        # Clear client weights for next round
-        self.client_weights.clear()
-
-        # Broadcast updated model to all clients
-        self._broadcast_updated_model()
-
-        return {
-            'success': True,
-            'round': self.round,
-            'clients_aggregated': num_clients
-        }
+            logger.warning('Derived federated checkpoint unavailable after confirmed completion')
+        try:
+            self._broadcast_updated_model()
+            broadcasted = True
+        except Exception:
+            logger.warning('Federated model notice unavailable after confirmed completion')
+        return {'success': True, 'round': self.round, 'clients_aggregated': count,
+                'checkpoint_saved': checkpoint_saved, 'model_broadcasted': broadcasted}
     
     def _save_checkpoint(self):
         """Save model checkpoint"""
@@ -757,6 +737,7 @@ class FederatedServer:
     @round_synchronized
     def get_global_model(self):
         """Get global model weights"""
+        ensure_snapshot(self, refresh=False)
         if self.global_weights is None:
             return None
         
@@ -765,6 +746,7 @@ class FederatedServer:
     @round_synchronized
     def get_model_stats(self):
         """Get model statistics"""
+        ensure_snapshot(self, refresh=False)
         stats = {
             'round': self.round,
             'total_clients': len(self._get_available_clients()),
