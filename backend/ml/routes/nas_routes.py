@@ -20,7 +20,7 @@ class SearchRequest(BaseModel):
     generations: int = 10
 
 @router.post("/search")
-async def search_architecture(request: SearchRequest):
+def search_architecture(request: SearchRequest):
     """Search for optimal architecture"""
     try:
         if request.method == 'random':
@@ -53,7 +53,7 @@ async def search_architecture(request: SearchRequest):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/build-model")
-async def build_model(architecture: Dict):
+def build_model(architecture: Dict):
     """Build model from architecture"""
     try:
         model = NASModel(architecture)
@@ -163,12 +163,7 @@ async def get_search_history():
     try:
         return {
             'success': True,
-            'data': {
-                'history': searcher.search_history[-20:],  # Last 20
-                'total_trials': len(searcher.search_history),
-                'best_architecture': searcher.best_architecture,
-                'best_performance': searcher.best_performance
-            },
+            'data': searcher.snapshot_history(),
             'timestamp': datetime.now().isoformat()
         }
     except Exception as e:
