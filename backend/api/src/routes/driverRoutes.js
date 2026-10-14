@@ -182,7 +182,6 @@ function getDriverUserClient(req) {
 }
 
 const router = express.Router();
-router.use(userLimiter);
 const hosStatusSchema = z.object({
   status: z.enum(['off_duty', 'on_duty', 'driving', 'resting'])
 });
@@ -1421,6 +1420,7 @@ const predictProfitLimiter = rateLimit({
 router.post(
   '/predict-profit',
   authenticate,
+  userLimiter,
   predictProfitLimiter,
   requirePolicy('driver:view-stats'),
   validateBody(predictDriverProfitSchema),
@@ -1781,7 +1781,7 @@ router.get('/earnings/report', authenticate, requirePolicy('driver:view-earnings
 });
 
 
-router.get('/weigh-stations/bypass-status', authenticate, requireDriverRole, async (req, res) => {
+router.get('/weigh-stations/bypass-status', authenticate, userLimiter, requireDriverRole, async (req, res) => {
   try {
     const driverId = req.user.id;
     const lat = parseCoordinate(req.query.lat);
@@ -2160,9 +2160,9 @@ const validateDriverId = (req, res, next) => {
 // However, we already have /:driverId/earnings and /:driverId/reputation.
 // We will add the new routes here.
 
-router.get('/:driverId', validateDriverId, authenticate, driverController.getDriverById);
-router.get('/:driverId/trips', validateDriverId, authenticate, driverController.getDriverTrips);
-router.put('/:driverId', validateDriverId, authenticate, driverController.updateDriver);
+router.get('/:driverId', validateDriverId, authenticate, userLimiter, driverController.getDriverById);
+router.get('/:driverId/trips', validateDriverId, authenticate, userLimiter, driverController.getDriverTrips);
+router.put('/:driverId', validateDriverId, authenticate, userLimiter, driverController.updateDriver);
 
 export default router;
 
