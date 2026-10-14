@@ -157,12 +157,16 @@ function buildCustomerQueryResponse(intent, bookingData) {
 
 function buildResponseForIntent(intent, bookingData, transcript) {
   const orderRef = bookingData?.order_display_id || bookingData?.id || 'your order';
-  const status = bookingData?.status || bookingData?.current_status || 'in transit';
+  // Humanize DB enum values ('in_transit') for the spoken/TTS response.
+  const status = (bookingData?.status || bookingData?.current_status || 'in transit').replace(/_/g, ' ');
+  const eta = bookingData?.eta;
   switch (intent) {
-    case 'payment_status':
+    case LOGISTICS_VOICE_INTENTS.PAYMENT_STATUS:
       return `Your payment for ${orderRef} is ${bookingData?.escrow_status || 'processing'}.`;
-    case 'eta':
-      return `Your shipment for ${orderRef} is ${status} and is on schedule.`;
+    case LOGISTICS_VOICE_INTENTS.ETA:
+      return eta
+        ? `Your shipment for ${orderRef} is ${status} with an estimated arrival of ${eta}.`
+        : `Your shipment for ${orderRef} is ${status} and is on schedule.`;
     default:
       return `Your shipment ${orderRef} is currently ${status}.`;
   }
