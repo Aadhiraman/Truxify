@@ -14,7 +14,12 @@ import { AppError } from '../utils/errors.js';
 
 export const createOrder = async (req, res, next) => {
   try {
-    const { order } = await orderLifecycleService.createOrder(req.user.id, req.user.fullName || 'Customer', req.body);
+    const { order } = await orderLifecycleService.createOrder(
+      req.user.id,
+      req.user.fullName || 'Customer',
+      req.body,
+      req.idempotencyKey ?? req.headers['x-idempotency-key'] ?? null
+    );
     res.status(201).json({ message: 'Order created successfully and broadcasted to loads board.', order });
   } catch (err) {
     if (err instanceof DomainError) return next(new AppError(err.message, err.status, "DOMAIN_ERROR", err.payload));
@@ -52,7 +57,9 @@ async function fetchLoadOffers(req, res, next, { isEnRoute, label }) {
 
     if (error) {
       logger.error(`[orderController] Failed to fetch ${label}:`, error.message);
-      return next(new AppError(`Failed to fetch ${label}.`, 500, "INTERNAL_ERROR", { details: error.message }));
+      // Do not leak the raw PostgREST error (relation names, SQL details)
+      // to clients — it is logged server-side above.
+      return next(new AppError(`Failed to fetch ${label}.`, 500, "INTERNAL_ERROR"));
     }
     res.json(offers);
   } catch (err) {
