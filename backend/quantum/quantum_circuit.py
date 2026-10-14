@@ -57,9 +57,10 @@ class QuantumCircuitDesigner:
         qaoa = qaoa.assign_parameters(
             {parameter: 0.0 for parameter in qaoa.parameters}
         )
-        qaoa.measure_all()
-        
-        # Ensure measurements are present so execution returns valid counts
+        # Ensure measurements are present so execution returns valid counts.
+        # (A discarded non-inplace measure_all() call here used to double the
+        # classical register on qiskit >= 1.x — measure_all defaults to
+        # inplace=False, so its result must be assigned.)
         qaoa.measure_all(inplace=True)
         
         self.circuit = qaoa
@@ -157,7 +158,11 @@ class QUBOFormatter:
         objective = {}
         for (u, v), var in edge_vars.items():
             weight = graph[u][v].get('weight', 1)
-            objective[(var, var)] = weight
+            # QuadraticProgram.minimize(linear=...) expects flat variable-name
+            # keys; a (var, var) tuple key is only valid under quadratic= and
+            # feeds the name strings into a numeric reduction. Binary x² == x,
+            # so the flat linear key is the same objective.
+            objective[var] = weight
 
         # Edge costs are linear because every route variable is binary.
         # Keeping the objective linear also allows the mixed-integer flow model
