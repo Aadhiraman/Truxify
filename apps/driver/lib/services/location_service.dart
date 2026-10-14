@@ -684,7 +684,9 @@ class LocationService {
               }
             }
           }
-        } catch (_) {}
+        } catch (e) {
+          debugPrint('[LocationService] Failed to process WebSocket message: $e');
+        }
       },
       onError: (error) {
         debugPrint('[LocationService] WebSocket error: $error');
