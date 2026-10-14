@@ -123,7 +123,7 @@ class SyncService {
     final files = <MultipartFileInfo>[];
 
     if (hasSignature) {
-      final file = File(signaturePath!);
+      final file = File(signaturePath);
       final bytes = await file.readAsBytes();
       files.add(MultipartFileInfo(
         fieldName: 'signature',
@@ -133,7 +133,7 @@ class SyncService {
     }
 
     if (hasPhoto) {
-      final file = File(photoPath!);
+      final file = File(photoPath);
       final bytes = await file.readAsBytes();
       files.add(MultipartFileInfo(
         fieldName: 'photo',

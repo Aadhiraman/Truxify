@@ -432,7 +432,7 @@ class _PastTripsScreenState extends State<PastTripsScreen> {
                             _isLoadingReputation
                                 ? '...'
                                 : _onChainScore != null
-                                    ? '${(_onChainScore! / 100).toStringAsFixed(1)}'
+                                    ? (_onChainScore! / 100).toStringAsFixed(1)
                                     : '0.0',
                             style: GoogleFonts.dmSans(
                               fontSize: 48,

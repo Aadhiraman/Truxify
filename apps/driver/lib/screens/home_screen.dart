@@ -1587,7 +1587,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ? Colors.black.withValues(alpha: 0.72)
         : Colors.white.withValues(alpha: 0.88);
 
-    Widget _dot(Color c) => Container(
+    Widget dot(Color c) => Container(
           width: 10,
           height: 10,
           decoration: BoxDecoration(color: c, shape: BoxShape.circle),
@@ -1620,11 +1620,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 5),
-          Row(children: [_dot(Colors.red), const SizedBox(width: 5), Text('High', style: GoogleFonts.dmSans(fontSize: 9, color: isDark ? Colors.white : TruxifyColors.primaryText))]),
+          Row(children: [dot(Colors.red), const SizedBox(width: 5), Text('High', style: GoogleFonts.dmSans(fontSize: 9, color: isDark ? Colors.white : TruxifyColors.primaryText))]),
           const SizedBox(height: 3),
-          Row(children: [_dot(Colors.orange), const SizedBox(width: 5), Text('Med', style: GoogleFonts.dmSans(fontSize: 9, color: isDark ? Colors.white : TruxifyColors.primaryText))]),
+          Row(children: [dot(Colors.orange), const SizedBox(width: 5), Text('Med', style: GoogleFonts.dmSans(fontSize: 9, color: isDark ? Colors.white : TruxifyColors.primaryText))]),
           const SizedBox(height: 3),
-          Row(children: [_dot(Colors.green), const SizedBox(width: 5), Text('Low', style: GoogleFonts.dmSans(fontSize: 9, color: isDark ? Colors.white : TruxifyColors.primaryText))]),
+          Row(children: [dot(Colors.green), const SizedBox(width: 5), Text('Low', style: GoogleFonts.dmSans(fontSize: 9, color: isDark ? Colors.white : TruxifyColors.primaryText))]),
         ],
       ),
     );
