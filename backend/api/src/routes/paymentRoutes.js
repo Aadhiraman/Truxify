@@ -2,6 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { authenticate } from '../middleware/auth.js';
+import { requirePolicy } from '../middleware/requirePolicy.js';
 import { validateBody, validateParams } from '../middleware/validate.js';
 import { requireIdempotency } from '../middleware/idempotency.js';
 import { acquireLock, releaseLock, LockAcquisitionError } from '../lib/redisLock.js';
@@ -222,7 +223,7 @@ router.post(
         if (orderValidationService && typeof orderValidationService.findOrderByIdOrDisplayId === 'function') {
           order = await orderValidationService.findOrderByIdOrDisplayId(
             order_id,
-            'id, order_display_id, customer_id, driver_id, total_amount, escrow_status, escrow_booking_id, wallet_address, escrow_driver_wallet, escrow_amount_wei, pending_bid_acceptance'
+            'id, order_display_id, customer_id, driver_id, total_amount, escrow_status, escrow_booking_id, escrow_driver_wallet, escrow_amount_wei, pending_bid_acceptance'
           );
         }
         if (!order && orderRepository) {
@@ -235,7 +236,7 @@ router.post(
           }
         }
       } catch (err) {
-        console.error('FETCH ORDER ERROR:', err);
+        logger.error({ err, requestId: req.id }, 'FETCH ORDER ERROR');
         return res.status(500).json({ error: 'Failed to fetch order.' });
       }
 
@@ -510,7 +511,7 @@ router.post(
         tx_hash,
       });
     } catch (err) {
-      console.error('OUTER PAYMENT LOCK ERROR:', err);
+      logger.error({ err, requestId: req.id }, 'OUTER PAYMENT LOCK ERROR');
       if (err instanceof LockAcquisitionError) {
         // Redis is down — do NOT proceed with the payment mutation.
         logger.error({ event: 'PAYMENT_REDIS_UNAVAILABLE', orderId: order_id, error: err.message }, '[payments] Redis unavailable — refusing payment lock');
@@ -669,5 +670,84 @@ router.post(
     }
   }
 );
+
+router.post('/initialize', authenticate, requirePolicy('payment:write'), async (req, res) => {
+  try {
+    if (!req.body || typeof req.body !== 'object') {
+      // Without a parsed body the destructuring below throws and the catch
+      // would report a 500 for what is a client 400.
+      return res.status(400).json({ error: 'Request body is required.' });
+    }
+    const { amount, expected_amount, currency, order_id } = req.body;
+
+    // Determine the amount field to validate (supports both 'amount' and 'expected_amount')
+    const targetAmount = amount !== undefined ? amount : expected_amount;
+
+    // Defense-in-depth validation guard for negative, zero, or non-finite
+    // payment amounts (JSON 1e999 arrives as Infinity, passes <= 0, and
+    // serializes as null downstream).
+    if (targetAmount === undefined || targetAmount === null || typeof targetAmount !== 'number' || !Number.isFinite(targetAmount) || targetAmount <= 0) {
+      logger.warn(
+        {
+          requestId: req.requestId || req.id,
+          event: 'PAYMENT_AMOUNT_INVALID',
+          amount: targetAmount,
+          orderId: order_id,
+        },
+        'Rejected payment initialization due to invalid or non-positive amount'
+      );
+      return res.status(400).json({
+        success: false,
+        error: 'Payment amount must be a positive number greater than zero.',
+      });
+    }
+
+    if (!order_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Order ID is required for payment initialization.',
+      });
+    }
+
+    // Simulate payment transaction record creation
+    const transactionId = `txn_${Date.now()}`;
+    
+    logger.info(
+      {
+        requestId: req.requestId || req.id,
+        event: 'PAYMENT_INITIALIZED',
+        transactionId,
+        amount: targetAmount,
+        orderId: order_id,
+      },
+      'Payment transaction initialized successfully'
+    );
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        transactionId,
+        orderId: order_id,
+        amount: targetAmount,
+        currency: currency || 'INR',
+        status: 'initialized',
+        createdAt: new Date().toISOString(),
+      },
+    });
+  } catch (err) {
+    logger.error(
+      {
+        requestId: req.requestId || req.id,
+        event: 'PAYMENT_INITIALIZATION_EXCEPTION',
+        error: err?.message || err,
+      },
+      'Unhandled exception during payment initialization'
+    );
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error while initializing payment.',
+    });
+  }
+});
 
 export default router;

@@ -5,7 +5,8 @@
 
 import { supabaseAdmin } from '../config/db.js';
 import logger from '../middleware/logger.js';
-import { signLogBatch, generateLogId, getEventSeverity } from '../lib/logSigner.js';
+import { signLogBatch, generateLogId } from '../lib/logSigner.js';
+import { getEventSeverity } from '../lib/auditEventTypes.js';
 
 const BATCH_SIZE = 50;
 const FLUSH_INTERVAL_MS = 2000;
@@ -115,7 +116,7 @@ async function flushAuditLogs() {
             logger.error({ err: error, count: batchToWrite.length }, 'Failed to insert audit logs');
             // In production, push to dead-letter queue or file
             // For now, log to console as fallback
-            console.error('AUDIT FALLBACK:', JSON.stringify(batchToWrite));
+            logger.error('AUDIT FALLBACK:', JSON.stringify(batchToWrite));
         }
     } catch (err) {
         logger.error({ err }, 'Unexpected error flushing audit logs');

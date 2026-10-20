@@ -1,5 +1,70 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { getLiveTrafficMultiplier, getLiveTrafficMultiplierEnterprise, trafficService } from '../../src/services/trafficService.js';
+import logger from '../../src/middleware/logger.js';
+import { redisClient } from '../../src/config/db.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { getLiveTrafficMultiplier } from '../../src/services/trafficService.js';
 
+describe('trafficService - getLiveTrafficMultiplier', () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe('Input Validation & Missing Coordinates', () => {
+    it('should return 1.0 when pickupLat or pickupLng is missing or undefined', async () => {
+      const resultMissingLat = await getLiveTrafficMultiplier(null, 80.2707);
+      expect(resultMissingLat).toBe(1.0);
+
+      const resultMissingLng = await getLiveTrafficMultiplier(13.0827, undefined);
+      expect(resultMissingLng).toBe(1.0);
+
+      const resultMissingBoth = await getLiveTrafficMultiplier();
+      expect(resultMissingBoth).toBe(1.0);
+    });
+  });
+
+  describe('Non-Rush Hour Behavior', () => {
+    it('should return 1.0 when outside rush hours', async () => {
+      // Mock system time to a non-rush hour (e.g., 2:00 AM)
+      const nonRushDate = new Date('2026-10-11T02:00:00Z');
+      vi.setSystemTime(nonRushDate);
+
+      const multiplier = await getLiveTrafficMultiplier(13.0827, 80.2707);
+      expect(multiplier).toBe(1.0);
+    });
+  });
+
+  describe('Rush Hour Surge Calculation', () => {
+    it('should return a multiplier between 1.2 and 2.5 during weekday rush hours', async () => {
+      // Mock system time to a weekday morning rush hour (e.g., Tuesday 08:30 AM)
+      const rushHourDate = new Date('2026-10-13T08:30:00Z'); // Oct 13, 2026 is a Tuesday
+      vi.setSystemTime(rushHourDate);
+
+      const multiplier = await getLiveTrafficMultiplier(13.0827, 80.2707);
+      expect(multiplier).toBeGreaterThanOrEqual(1.2);
+      expect(multiplier).toBeLessThanOrEqual(2.5);
+    });
+  });
+
+  describe('Coordinate Consistency', () => {
+    it('should handle coordinate hash consistently for the same location', async () => {
+      const lat = 13.0827;
+      const lng = 80.2707;
+
+      const rushHourDate = new Date('2026-10-13T09:00:00Z');
+      vi.setSystemTime(rushHourDate);
+
+      const firstCall = await getLiveTrafficMultiplier(lat, lng);
+      const secondCall = await getLiveTrafficMultiplier(lat, lng);
+
+      expect(firstCall).toBe(secondCall);
+    });
+  });
+});
 // === Mocking External Dependencies ===
 vi.mock('../../src/middleware/logger.js', () => ({
   default: {
@@ -152,11 +217,11 @@ describe('TrafficService - Complete Enterprise & Edge Case Test Suite (Issues #1
       }
     });
 
-    it('calculates correct multiplier from TomTom speedDiffPercent (positive traffic delay)', async () => {
+    it('calculates correct multiplier from TomTom travel times (positive traffic delay)', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          flowSegmentData: { speedDiffPercent: 45 }
+          flowSegmentData: { currentTravelTime: 145, freeFlowTravelTime: 100 }
         })
       });
       vi.stubGlobal('fetch', mockFetch);
@@ -166,11 +231,11 @@ describe('TrafficService - Complete Enterprise & Edge Case Test Suite (Issues #1
       expect(logger.info).toHaveBeenCalled();
     });
 
-    it('clamps TomTom multiplier to MAX_SURGE_MULTIPLIER (2.5) when speedDiffPercent is extremely high', async () => {
+    it('clamps TomTom multiplier to MAX_SURGE_MULTIPLIER (2.5) when travel time is extremely high', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          flowSegmentData: { speedDiffPercent: 200 }
+          flowSegmentData: { currentTravelTime: 300, freeFlowTravelTime: 100 }
         })
       });
       vi.stubGlobal('fetch', mockFetch);
@@ -179,11 +244,11 @@ describe('TrafficService - Complete Enterprise & Edge Case Test Suite (Issues #1
       expect(multiplier).toBe(2.5);
     });
 
-    it('clamps TomTom multiplier to minimum 1.0 when speedDiffPercent is negative', async () => {
+    it('clamps TomTom multiplier to minimum 1.0 when travel time is below free flow', async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          flowSegmentData: { speedDiffPercent: -20 }
+          flowSegmentData: { currentTravelTime: 80, freeFlowTravelTime: 100 }
         })
       });
       vi.stubGlobal('fetch', mockFetch);
@@ -213,11 +278,11 @@ describe('TrafficService - Complete Enterprise & Edge Case Test Suite (Issues #1
       expect(logger.error).toHaveBeenCalled();
     });
 
-    it('raises the surge multiplier when TomTom reports slower traffic (speedDiffPercent -35 => 1.35)', async () => {
+    it('raises the surge multiplier when TomTom reports longer travel time (135/100 => 1.35)', async () => {
       process.env.TOMTOM_API_KEY = 'test-key';
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ flowSegmentData: { speedDiffPercent: -35 } }),
+        json: async () => ({ flowSegmentData: { currentTravelTime: 135, freeFlowTravelTime: 100 } }),
       });
       vi.stubGlobal('fetch', mockFetch);
 
@@ -318,9 +383,9 @@ describe('TrafficService - Complete Enterprise & Edge Case Test Suite (Issues #1
       expect(multiplier).toBe(1.0);
     });
 
-    it('reaches MIN_SURGE_MULTIPLIER (1.2) precisely at morning window edge start (07:00 UTC)', async () => {
-      vi.setSystemTime(new Date('2026-09-19T07:00:00Z'));
-      const multiplier = await getLiveTrafficMultiplier(28.61, 77.23);
+    it('reaches MIN_SURGE_MULTIPLIER (1.2) precisely at morning window edge start (07:00 IST)', () => {
+      // 01:30 UTC is 07:00 IST, the start of the morning rush window.
+      const multiplier = trafficService.getRushHourMultiplier(new Date('2026-09-19T01:30:00Z'));
       expect(multiplier).toBeCloseTo(1.20, 2);
     });
 
@@ -330,15 +395,15 @@ describe('TrafficService - Complete Enterprise & Edge Case Test Suite (Issues #1
       expect(multiplier).toBe(1.0);
     });
 
-    it('peaks during morning rush window center (08:30 UTC)', async () => {
-      vi.setSystemTime(new Date('2026-09-19T08:30:00Z'));
-      const multiplier = await getLiveTrafficMultiplier(28.61, 77.23);
+    it('peaks during morning rush window center (08:30 IST)', () => {
+      // 03:00 UTC is 08:30 IST, the center of the morning rush window.
+      const multiplier = trafficService.getRushHourMultiplier(new Date('2026-09-19T03:00:00Z'));
       expect(multiplier).toBeCloseTo(2.33, 2);
     });
 
-    it('reaches MIN_SURGE_MULTIPLIER (1.2) precisely at evening window edge start (16:00 UTC)', async () => {
-      vi.setSystemTime(new Date('2026-09-19T16:00:00Z'));
-      const multiplier = await getLiveTrafficMultiplier(28.61, 77.23);
+    it('reaches MIN_SURGE_MULTIPLIER (1.2) precisely at evening window edge start (16:00 IST)', () => {
+      // 10:30 UTC is 16:00 IST, the start of the evening rush window.
+      const multiplier = trafficService.getRushHourMultiplier(new Date('2026-09-19T10:30:00Z'));
       expect(multiplier).toBeCloseTo(1.20, 2);
     });
 
@@ -348,9 +413,9 @@ describe('TrafficService - Complete Enterprise & Edge Case Test Suite (Issues #1
       expect(multiplier).toBe(1.0);
     });
 
-    it('peaks during evening rush window center (17:30 UTC)', async () => {
-      vi.setSystemTime(new Date('2026-09-19T17:30:00Z'));
-      const multiplier = await getLiveTrafficMultiplier(28.61, 77.23);
+    it('peaks during evening rush window center (17:30 IST)', () => {
+      // 12:00 UTC is 17:30 IST, the center of the evening rush window.
+      const multiplier = trafficService.getRushHourMultiplier(new Date('2026-09-19T12:00:00Z'));
       expect(multiplier).toBeCloseTo(2.33, 2);
     });
 

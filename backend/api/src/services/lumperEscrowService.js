@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import logger from '../middleware/logger.js';
 import { ValidationError } from '../utils/errors.js';
 
@@ -38,7 +39,7 @@ class LumperEscrowService {
       brokerAddress,
       estimatedFeeAmount: feeAmount,
       status: 'HELD_IN_ESCROW',
-      txHash: `0x${Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('')}`,
+      txHash: `0x${crypto.randomBytes(32).toString('hex')}`,
       createdAt: new Date().toISOString()
     };
 
@@ -87,7 +88,7 @@ class LumperEscrowService {
     escrow.releasedAmount = parsedAmount;
     escrow.driverWallet = driverWallet.trim();
     escrow.receiptImageUrl = receiptImageUrl.trim();
-    escrow.releaseTxHash = `0x${Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('')}`;
+    escrow.releaseTxHash = `0x${crypto.randomBytes(32).toString('hex')}`;
     escrow.releasedAt = new Date().toISOString();
 
     this.escrows.set(escrowId, escrow);

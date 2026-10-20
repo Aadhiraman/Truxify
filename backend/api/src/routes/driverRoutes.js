@@ -127,7 +127,8 @@
  */
 
 import express from 'express';
-import { supabase, getAdminClient, redisClient, createUserClient } from '../config/db.js';
+import { getAdminClient, redisClient, createUserClient } from '../config/db.js';
+import { getStatementPayout } from '../services/driver/statementPayout.js';
 import { getDriverReputation } from '../services/reputation.js';
 import { predictDriverProfit } from '../services/ml.js';
 import { authenticate } from '../middleware/auth.js';
@@ -165,8 +166,22 @@ import { requireIdempotency } from '../middleware/idempotency.js';
 
 import driverController from '../controllers/driverController.js'; 
 
+// Reuse one caller-scoped client per request without sharing credentials
+// across requests. Missing tokens must never fall back to the anonymous client.
+const driverUserClients = new WeakMap();
+function getDriverUserClient(req) {
+  if (typeof req.token !== 'string' || !req.token.trim()) {
+    throw new Error('Authenticated driver database access requires a token.');
+  }
+  let cached = driverUserClients.get(req);
+  if (!cached || cached.token !== req.token) {
+    cached = { token: req.token, client: createUserClient(req.token) };
+    driverUserClients.set(req, cached);
+  }
+  return cached.client;
+}
+
 const router = express.Router();
-router.use(userLimiter);
 const hosStatusSchema = z.object({
   status: z.enum(['off_duty', 'on_duty', 'driving', 'resting'])
 });
@@ -344,7 +359,7 @@ function hasValidCoordinates(lat, lng) {
  */
 router.get('/stats', authenticate, userLimiter, requirePolicy('driver:view-stats'), async (req, res) => {
   try {
-    const { data: details, error } = await supabase
+    const { data: details, error } = await getDriverUserClient(req)
       .from('driver_details')
       .select('rating, total_trips, completion_rate, is_online, wallet_confirmed, wallet_pending, wallet_total, truck_id')
       .eq('user_id', req.user.id)
@@ -361,7 +376,7 @@ router.get('/stats', authenticate, userLimiter, requirePolicy('driver:view-stats
     // Fetch truck details if assigned
     let truck = null;
     if (details.truck_id) {
-      const { data: truckData } = await supabase
+      const { data: truckData } = await getDriverUserClient(req)
         .from('trucks')
         .select('*')
         .eq('id', details.truck_id)
@@ -412,7 +427,7 @@ router.put('/online', authenticate, userLimiter, requirePolicy('driver:toggle-on
   const { is_online } = req.body;
 
   try {
-    const { data: details, error } = await supabase
+    const { data: details, error } = await getDriverUserClient(req)
       .from('driver_details')
       .update({ is_online, updated_at: new Date().toISOString() })
       .eq('user_id', req.user.id)
@@ -432,7 +447,7 @@ router.put('/online', authenticate, userLimiter, requirePolicy('driver:toggle-on
     });
 
   } catch (err) {
-    logger.error({ requestId: req.requestId }, 'Driver online status update error:', err);
+    logger.error({ event: 'DRIVER_ONLINE_STATUS_UPDATE_ERROR', requestId: req.requestId || req.id, error: err?.message ?? String(err) }, 'Driver online status update error');
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -444,7 +459,7 @@ router.put('/hos/status', authenticate, userLimiter, requirePolicy('driver:updat
   const { status } = req.body;
 
   try {
-    const { data: details, error } = await supabase
+    const { data: details, error } = await getDriverUserClient(req)
       .from('driver_details')
       .update({
         hos_status: status,
@@ -545,7 +560,7 @@ router.get('/wallet/history', authenticate, userLimiter, requirePolicy('driver:v
       data: transactions,
       error,
       count
-    } = await supabase
+    } = await getDriverUserClient(req)
       .from('wallet_transactions')
       .select('*', { count: 'exact' })
       .eq('driver_id', req.user.id)
@@ -572,7 +587,7 @@ router.get('/wallet/history', authenticate, userLimiter, requirePolicy('driver:v
     });
 
   } catch (err) {
-    logger.error({ requestId: req.requestId }, 'Wallet history fetch error:', err);
+    logger.error({ event: 'DRIVER_WALLET_HISTORY_FETCH_ERROR', requestId: req.requestId || req.id, error: err?.message ?? String(err) }, 'Wallet history fetch error');
 
     res.status(500).json({
       error: 'Internal Server Error'
@@ -663,7 +678,7 @@ router.get('/earnings/summary', authenticate, userLimiter, requirePolicy('driver
       windowFilter = { start: cutoff.toISOString().split('T')[0] };
     }
 
-    let query = supabase
+    let query = getDriverUserClient(req)
       .from('earnings_daily')
       .select('day_date, amount, trip_count, hours_driven')
       .eq('driver_id', req.user.id);
@@ -722,7 +737,7 @@ async function handleGetDriverEarnings(req, res) {
 
     const startDateStr = startDate.toISOString().split('T')[0];
 
-    const { data: trips, error } = await supabase
+    const { data: trips, error } = await getDriverUserClient(req)
       .from('trips')
       .select('*')
       .eq('driver_id', driverId)
@@ -910,7 +925,7 @@ router.get('/trips', authenticate, userLimiter, requirePolicy('driver:view-trips
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    let query = supabase
+    let query = getDriverUserClient(req)
       .from('trips')
       .select('*', { count: 'exact' })
       .eq('driver_id', req.user.id);
@@ -933,11 +948,11 @@ router.get('/trips', authenticate, userLimiter, requirePolicy('driver:view-trips
     let ratingsMap = {};
     if (orderDisplayIds.length > 0) {
       const [ordersRes, ratingsRes] = await Promise.all([
-        supabase
+        getDriverUserClient(req)
           .from('orders')
           .select('order_display_id, escrow_status')
           .in('order_display_id', orderDisplayIds),
-        supabase
+        getDriverUserClient(req)
           .from('ratings')
           .select('order_display_id, stars')
           .in('order_display_id', orderDisplayIds)
@@ -972,7 +987,7 @@ router.get('/trips', authenticate, userLimiter, requirePolicy('driver:view-trips
       pagination
     });
   } catch (err) {
-    logger.error({ requestId: req.requestId }, 'Driver trips fetch error:', err);
+    logger.error({ event: 'DRIVER_TRIPS_FETCH_ERROR', requestId: req.requestId || req.id, error: err?.message ?? String(err) }, 'Driver trips fetch error');
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -1006,7 +1021,7 @@ router.get('/trips/:tripDisplayId', authenticate, userLimiter, requirePolicy('dr
   const { tripDisplayId } = req.params;
 
   try {
-    const { data: trip, error } = await supabase
+    const { data: trip, error } = await getDriverUserClient(req)
       .from('trips')
       .select('*')
       .eq('trip_display_id', tripDisplayId)
@@ -1022,7 +1037,7 @@ router.get('/trips/:tripDisplayId', authenticate, userLimiter, requirePolicy('dr
 
     res.json(trip);
   } catch (err) {
-    logger.error({ requestId: req.requestId }, 'Driver single trip fetch error:', err);
+    logger.error({ event: 'DRIVER_TRIP_DETAIL_FETCH_ERROR', requestId: req.requestId || req.id, error: err?.message ?? String(err) }, 'Driver single trip fetch error');
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -1062,7 +1077,7 @@ router.get('/trips/:tripDisplayId/items', authenticate, userLimiter, requirePoli
   const { tripDisplayId } = req.params;
 
   try {
-    const userClient = createUserClient(req.token);
+    const userClient = getDriverUserClient(req);
     const { data: trip } = await userClient.from('trips').select('id').eq('trip_display_id', tripDisplayId).eq('driver_id', req.user.id).maybeSingle();
     if (!trip) return res.status(403).json({ error: 'Access Denied: Trip does not belong to you.' });
 
@@ -1105,7 +1120,7 @@ router.get('/trips/:tripDisplayId/stops', authenticate, userLimiter, requirePoli
   const { tripDisplayId } = req.params;
 
   try {
-    const userClient = createUserClient(req.token);
+    const userClient = getDriverUserClient(req);
     const { data: trip } = await userClient.from('trips').select('id').eq('trip_display_id', tripDisplayId).eq('driver_id', req.user.id).maybeSingle();
     if (!trip) return res.status(403).json({ error: 'Access Denied: Trip does not belong to you.' });
 
@@ -1148,7 +1163,7 @@ router.get('/trips/:tripDisplayId/route-points', authenticate, userLimiter, requ
   const { tripDisplayId } = req.params;
 
   try {
-    const userClient = createUserClient(req.token);
+    const userClient = getDriverUserClient(req);
     const { data: trip } = await userClient.from('trips').select('id').eq('trip_display_id', tripDisplayId).eq('driver_id', req.user.id).maybeSingle();
     if (!trip) return res.status(403).json({ error: 'Access Denied: Trip does not belong to you.' });
 
@@ -1180,7 +1195,7 @@ router.patch(
     }
 
     try {
-      const { data: point, error: pointError } = await supabase
+      const { data: point, error: pointError } = await getDriverUserClient(req)
         .from('route_map_points')
         .select('id, trip_display_id')
         .eq('id', id)
@@ -1193,7 +1208,7 @@ router.patch(
         return res.status(404).json({ error: 'Route map point not found.' });
       }
 
-      const { data: trip } = await supabase
+      const { data: trip } = await getDriverUserClient(req)
         .from('trips')
         .select('id')
         .eq('trip_display_id', point.trip_display_id)
@@ -1204,7 +1219,7 @@ router.patch(
         return res.status(403).json({ error: 'Access Denied: Route point does not belong to your trip.' });
       }
 
-      const { data: updated, error: updateError } = await supabase
+      const { data: updated, error: updateError } = await getDriverUserClient(req)
         .from('route_map_points')
         .update({ is_claimed: claimed })
         .eq('id', id)
@@ -1217,7 +1232,7 @@ router.patch(
 
       res.json({ point: updated });
     } catch (err) {
-      logger.error('Driver route point claim error:', err);
+      logger.error({ event: 'DRIVER_ROUTE_POINT_CLAIM_ERROR', requestId: req.requestId || req.id, error: err?.message ?? String(err) }, 'Driver route point claim error');
       res.status(500).json({ error: 'Internal Server Error' });
     }
   },
@@ -1281,7 +1296,7 @@ router.get('/bids', authenticate, userLimiter, requirePolicy('driver:view-bids')
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    const { data: bids, error, count } = await supabase
+    const { data: bids, error, count } = await getDriverUserClient(req)
       .from('load_bids')
       .select('*', { count: 'exact' })
       .eq('driver_id', req.user.id)
@@ -1301,7 +1316,7 @@ router.get('/bids', authenticate, userLimiter, requirePolicy('driver:view-bids')
       pagination
     });
   } catch (err) {
-    logger.error('Driver bids fetch error:', err);
+    logger.error({ event: 'DRIVER_BIDS_FETCH_ERROR', requestId: req.requestId || req.id, error: err?.message ?? String(err) }, 'Driver bids fetch error');
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -1345,7 +1360,7 @@ router.post('/wallet/withdraw', authenticate, userLimiter, requirePolicy('driver
     }
 
     // 5.1 Fetch driver confirmed balance
-    const { data: details, error: detailsErr } = await supabase
+    const { data: details, error: detailsErr } = await getDriverUserClient(req)
       .from('driver_details')
       .select('wallet_confirmed')
       .eq('user_id', req.user.id)
@@ -1367,8 +1382,7 @@ router.post('/wallet/withdraw', authenticate, userLimiter, requirePolicy('driver
     }
 
     // 5.2 Execute atomically via Supabase RPC
-    const userClient = createUserClient(req.token);
-    const { error: rpcErr } = await userClient.rpc('withdraw_funds_tx', {
+    const { error: rpcErr } = await getDriverUserClient(req).rpc('withdraw_funds_tx', {
       p_driver_id: req.user.id,
       p_amount:    amount
     });
@@ -1387,7 +1401,7 @@ router.post('/wallet/withdraw', authenticate, userLimiter, requirePolicy('driver
     });
 
   } catch (err) {
-    logger.error('Driver wallet withdrawal error:', err);
+    logger.error({ event: 'DRIVER_WALLET_WITHDRAWAL_ERROR', requestId: req.requestId || req.id, error: err?.message ?? String(err) }, 'Driver wallet withdrawal error');
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -1406,6 +1420,7 @@ const predictProfitLimiter = rateLimit({
 router.post(
   '/predict-profit',
   authenticate,
+  userLimiter,
   predictProfitLimiter,
   requirePolicy('driver:view-stats'),
   validateBody(predictDriverProfitSchema),
@@ -1491,19 +1506,19 @@ router.get('/:driverId/reputation', authenticate, userLimiter, requirePolicy('dr
           return res.status(200).json(JSON.parse(cached));
         }
       } catch (cacheErr) {
-        logger.error(`[reputation] Redis read error for driver ${driverId}: ${cacheErr.message}`);
+        logger.error({ event: 'DRIVER_REPUTATION_REDIS_READ_ERROR', requestId: req.requestId || req.id, driverId, error: cacheErr?.message ?? String(cacheErr) }, 'Reputation redis read error');
       }
     }
 
     // Fetch details from Supabase
-    const { data: details, error } = await supabase
+    const { data: details, error } = await getDriverUserClient(req)
       .from('driver_details')
       .select('rating, polygon_wallet_address')
       .eq('user_id', driverId)
       .maybeSingle();
 
     if (error) {
-      logger.error(`[reputation] Supabase query error for driver ${driverId}: ${error.message}`);
+      logger.error({ event: 'DRIVER_REPUTATION_QUERY_ERROR', requestId: req.requestId || req.id, driverId, error: error?.message ?? String(error) }, 'Reputation supabase query error');
       return res.status(500).json({ error: 'Failed to fetch driver details.', details: error.message });
     }
 
@@ -1535,14 +1550,14 @@ router.get('/:driverId/reputation', authenticate, userLimiter, requirePolicy('dr
           30
         );
       } catch (cacheErr) {
-        logger.error(`[reputation] Redis write error for driver ${driverId}: ${cacheErr.message}`);
+        logger.error({ event: 'DRIVER_REPUTATION_REDIS_WRITE_ERROR', requestId: req.requestId || req.id, driverId, error: cacheErr?.message ?? String(cacheErr) }, 'Reputation redis write error');
       }
     }
 
     return res.status(200).json(responseData);
 
   } catch (err) {
-    logger.error(`[reputation] Unexpected error retrieving reputation for driver ${driverId}: ${err.message}`);
+    logger.error({ event: 'DRIVER_REPUTATION_UNEXPECTED_ERROR', requestId: req.requestId || req.id, driverId, error: err?.message ?? String(err) }, 'Unexpected reputation error');
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -1572,9 +1587,9 @@ async function handleDriverEarningsAndStatement(req, res, filename, errorLabel) 
     const trips = [];
 
     while (true) {
-      let pageQuery = supabase
+      let pageQuery = getDriverUserClient(req)
         .from('orders')
-        .select('id, order_display_id, status, pickup_address, drop_address, pickup_date, base_freight, toll_estimate, platform_fee')
+        .select('id, order_display_id, status, pickup_address, drop_address, pickup_date, bid_amount, total_amount, base_freight, toll_estimate, platform_fee')
         .eq('driver_id', userId)
         .in('status', ['delivered', 'payment_released'])
         .order('pickup_date', { ascending: true })
@@ -1613,7 +1628,7 @@ async function handleDriverEarningsAndStatement(req, res, filename, errorLabel) 
       const baseFreight = Number(trip.base_freight) || 0;
       const platformFee = Number(trip.platform_fee) || 0;
       const tollEstimate = Number(trip.toll_estimate) || 0;
-      const netEarnings = baseFreight - platformFee;
+      const netEarnings = getStatementPayout(trip);
 
       totalBaseFreight += baseFreight;
       totalPlatformFees += platformFee;
@@ -1627,7 +1642,7 @@ async function handleDriverEarningsAndStatement(req, res, filename, errorLabel) 
         drop_address: trip.drop_address,
         pickup_date: trip.pickup_date,
         base_freight: baseFreight,
-        platform_fee: platformFee,
+        platform_fee: platformFee;
         toll_estimate: tollEstimate,
         net_earnings: netEarnings,
         status: trip.status
@@ -1635,6 +1650,7 @@ async function handleDriverEarningsAndStatement(req, res, filename, errorLabel) 
     });
 
     // Apply sorting before formatting output
+    avg_earning_per_km: totalKm > 0 ? totalNetEarnings / totalKm : 0,
     if (sort_by === 'net_earnings') {
       tripsList.sort((a, b) => (b.net_earnings - a.net_earnings) || new Date(b.pickup_date) - new Date(a.pickup_date));
     } else if (sort_by === 'base_freight') {
@@ -1766,7 +1782,7 @@ router.get('/earnings/report', authenticate, requirePolicy('driver:view-earnings
 });
 
 
-router.get('/weigh-stations/bypass-status', authenticate, requireDriverRole, async (req, res) => {
+router.get('/weigh-stations/bypass-status', authenticate, userLimiter, requireDriverRole, async (req, res) => {
   try {
     const driverId = req.user.id;
     const lat = parseCoordinate(req.query.lat);
@@ -1785,7 +1801,7 @@ router.get('/weigh-stations/bypass-status', authenticate, requireDriverRole, asy
     }
     return res.status(200).json(status);
   } catch (err) {
-    logger.error(`[weigh-station] Error getting bypass status for driver ${req.user.id}: ${err.message}`);
+    logger.error({ event: 'WEIGH_STATION_BYPASS_STATUS_ERROR', requestId: req.requestId || req.id, driverId: req.user.id, error: err?.message ?? String(err) }, 'Error getting bypass status');
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -1827,16 +1843,18 @@ router.get('/weigh-stations/bypass-status', authenticate, requireDriverRole, asy
  *       400:
  *         description: Invalid payload
  */
-router.post('/weigh-stations/sync-weight', validateBody(syncWeightSchema), authenticate, requirePolicy('driver:view-stats'), userLimiter, async (req, res) => {
+router.post('/weigh-stations/sync-weight', authenticate, requirePolicy('driver:view-stats'), userLimiter, validateBody(syncWeightSchema), async (req, res) => {
   try {
     const driverId = req.user.id;
-    const { truck_id, axles } = req.body;
+    // syncWeightSchema is .strict() — it strips everything but its declared
+    // keys, so the validated body carries vehicleId/truckId, never truck_id.
+    const { truckId, axles } = req.body;
 
     // Optional: verify the truck belongs to the driver
-    const { data: truck, error: truckErr } = await supabase
+    const { data: truck, error: truckErr } = await getDriverUserClient(req)
       .from('trucks')
       .select('id')
-      .eq('id', truck_id)
+      .eq('id', truckId)
       .eq('driver_id', driverId)
       .single();
 
@@ -1844,10 +1862,10 @@ router.post('/weigh-stations/sync-weight', validateBody(syncWeightSchema), authe
       return res.status(403).json({ error: 'Forbidden: Truck does not belong to you or does not exist' });
     }
 
-    const status = await syncAndTransmitInternalWeights(driverId, truck_id, axles);
+    const status = await syncAndTransmitInternalWeights(driverId, truckId, axles);
     return res.status(200).json(status);
   } catch (err) {
-    logger.error(`[weigh-station] Error syncing internal weight for driver ${req.user.id}: ${err.message}`);
+    logger.error({ event: 'WEIGH_STATION_SYNC_WEIGHT_ERROR', requestId: req.requestId || req.id, driverId: req.user.id, error: err?.message ?? String(err) }, 'Error syncing internal weight');
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -1888,7 +1906,7 @@ router.get('/ltl/optimize-route', authenticate, userLimiter, requireDriverRole, 
       return res.status(400).json({ error: 'Valid lat and lng query parameters are required.' });
     }
 
-    const { data: activeOrders, error } = await supabase
+    const { data: activeOrders, error } = await getDriverUserClient(req)
       .from('orders')
       .select('id, order_display_id, status, pickup_address, pickup_lat, pickup_lng, drop_address, drop_lat, drop_lng')
       .eq('driver_id', req.user.id)
@@ -1928,7 +1946,7 @@ router.get('/ltl/optimize-route', authenticate, userLimiter, requireDriverRole, 
 
     res.json({ optimized_route: optimizedTasks });
   } catch (err) {
-    logger.error(`[LTL Route] Error optimizing route for driver ${req.user.id}: ${err.message}`);
+    logger.error({ event: 'LTL_ROUTE_OPTIMIZE_ERROR', requestId: req.requestId || req.id, driverId: req.user.id, error: err?.message ?? String(err) }, 'Error optimizing route');
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -1944,7 +1962,7 @@ router.get('/profile', authenticate, userLimiter, async (req, res) => {
     // Read through the caller's authenticated client so RLS lets the driver
     // see their own profile, driver_details (including kyc_status), truck
     // and documents. The shared anon client is denied on all of these.
-    const db = createUserClient(req.token);
+    const db = getDriverUserClient(req);
 
     // 1. Fetch base profile
     const { data: profile, error: profileErr } = await db
@@ -2004,7 +2022,7 @@ router.get('/profile', authenticate, userLimiter, async (req, res) => {
       documents: docMap
     });
   } catch (err) {
-    logger.error('Driver profile fetch error:', err);
+    logger.error({ event: 'DRIVER_PROFILE_FETCH_ERROR', requestId: req.requestId || req.id, error: err?.message ?? String(err) }, 'Driver profile fetch error');
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -2016,7 +2034,7 @@ router.patch('/availability', authenticate, userLimiter, async (req, res) => {
       return res.status(400).json({ error: 'available field must be a boolean.' });
     }
 
-    const { data: details, error } = await supabase
+    const { data: details, error } = await getDriverUserClient(req)
       .from('driver_details')
       .update({ is_online: available, updated_at: new Date().toISOString() })
       .eq('user_id', req.user.id)
@@ -2032,7 +2050,7 @@ router.patch('/availability', authenticate, userLimiter, async (req, res) => {
       isOnline: details?.is_online || false
     });
   } catch (err) {
-    logger.error('Driver availability update error:', err);
+    logger.error({ event: 'DRIVER_AVAILABILITY_UPDATE_ERROR', requestId: req.requestId || req.id, error: err?.message ?? String(err) }, 'Driver availability update error');
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -2052,7 +2070,7 @@ router.put('/truck', authenticate, userLimiter, requireDriverRole, async (req, r
     }
 
     // Check if driver has an existing truck assigned
-    const { data: details, error: detailsErr } = await supabase
+    const { data: details, error: detailsErr } = await getDriverUserClient(req)
       .from('driver_details')
       .select('truck_id')
       .eq('user_id', req.user.id)
@@ -2067,7 +2085,7 @@ router.put('/truck', authenticate, userLimiter, requireDriverRole, async (req, r
 
     if (truckId) {
       // Update existing truck
-      const { data, error } = await supabase
+      const { data, error } = await getDriverUserClient(req)
         .from('trucks')
         .update({
           truck_type: type,
@@ -2083,7 +2101,7 @@ router.put('/truck', authenticate, userLimiter, requireDriverRole, async (req, r
       truckData = data;
     } else {
       // Create new truck
-      const { data, error } = await supabase
+      const { data, error } = await getDriverUserClient(req)
         .from('trucks')
         .insert({
           driver_id: req.user.id,
@@ -2100,7 +2118,7 @@ router.put('/truck', authenticate, userLimiter, requireDriverRole, async (req, r
       truckId = data.id;
 
       // Update driver details with new truck ID
-      await supabase
+      await getDriverUserClient(req)
         .from('driver_details')
         .update({ truck_id: truckId, updated_at: new Date().toISOString() })
         .eq('user_id', req.user.id);
@@ -2111,7 +2129,7 @@ router.put('/truck', authenticate, userLimiter, requireDriverRole, async (req, r
       truck: truckData
     });
   } catch (err) {
-    logger.error('Driver truck update error:', err);
+    logger.error({ event: 'DRIVER_TRUCK_UPDATE_ERROR', requestId: req.requestId || req.id, error: err?.message ?? String(err) }, 'Driver truck update error');
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -2145,10 +2163,8 @@ const validateDriverId = (req, res, next) => {
 // However, we already have /:driverId/earnings and /:driverId/reputation.
 // We will add the new routes here.
 
-router.get('/:driverId', validateDriverId, authenticate, driverController.getDriverById);
-router.get('/:driverId/trips', validateDriverId, authenticate, driverController.getDriverTrips);
-router.put('/:driverId', validateDriverId, authenticate, driverController.updateDriver);
+router.get('/:driverId', validateDriverId, authenticate, userLimiter, driverController.getDriverById);
+router.get('/:driverId/trips', validateDriverId, authenticate, userLimiter, driverController.getDriverTrips);
+router.put('/:driverId', validateDriverId, authenticate, userLimiter, driverController.updateDriver);
 
 export default router;
-
-// Resolves #2051: Composite indexes added for 2dsphere queries

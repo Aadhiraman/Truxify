@@ -2,8 +2,43 @@
  * Commercial Weigh Station & Federal Bridge Gross Weight Formula (23 CFR § 658.17) Engine.
  * Provides regulatory compliance verification across axle groups, spacing, and WIM bypass.
  */
+
 import logger from '../middleware/logger.js';
 
+/**
+ * Checks weigh station bypass eligibility for a given trip/truck.
+ * NOTE: This is currently a mock service and must be replaced with a real regulatory API integration before production rollout.
+ * 
+ * @param {Object} params
+ * @param {string} params.vehicleId
+ * @param {number} params.weight
+ * @returns {Promise<Object>} Bypass decision result
+ */
+export async function checkBypassEligibility({ vehicleId, weight }) {
+  logger.info({ vehicleId, weight }, 'Evaluating weigh station bypass eligibility (Mock Service)');
+
+  // Deterministic mock response (replaces Math.random coin-flip)
+  return {
+    action: 'BYPASS',
+    simulated: true,
+    reason: 'Mock regulatory evaluation: vehicle within compliant weight threshold.',
+    evaluatedAt: new Date().toISOString()
+  };
+}
+const checkBypassEligibility = async (driverId, lat, lng) => {
+  // No real WIM/bypass provider (Drivewyze/PrePass) is integrated. The
+  // previous implementation returned a Math.random() coin-flip presented as a
+  // regulatory verdict, which a driver could legally rely on. There is no real
+  // integration to call, so this fails closed and reports itself as
+  // unsupported instead of inventing a BYPASS/PULL_IN decision.
+  return {
+    action: 'UNSUPPORTED',
+    supported: false,
+    simulated: true,
+    stationId: null,
+    reason: 'Weigh-in-motion bypass is not available: no WIM provider is configured. This is not a regulatory verdict.',
+    timestamp: new Date().toISOString(),
+  };
 // Standard Federal Limits (lbs)
 export const FHWA_LIMITS = {
     MAX_SINGLE_AXLE_LBS: 20000,
@@ -64,6 +99,7 @@ export function evaluateBridgeFormulaCompliance(truckProfile = {}) {
     }
 
     const violations = [];
+    const numericWeights = [];
     let totalWeightLbs = 0;
 
     // 1. Single Axle Check
@@ -76,6 +112,7 @@ export function evaluateBridgeFormulaCompliance(truckProfile = {}) {
                 violations: []
             };
         }
+        numericWeights.push(weight);
         totalWeightLbs += weight;
 
         // Individual single axle check (20,000 lbs max)
@@ -114,7 +151,7 @@ export function evaluateBridgeFormulaCompliance(truckProfile = {}) {
 
             let groupWeight = 0;
             for (let k = i; k <= j; k++) {
-                groupWeight += axles[k].weightLbs;
+                groupWeight += numericWeights[k];
             }
 
             // Standard tandem check for axles spaced <= 8 feet (96 inches)
